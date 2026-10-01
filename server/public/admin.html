@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Painel do Professor — React Native Quest</title>
+<style>
+  :root { --bg:#14161f; --card:#1e2130; --line:#2d3246; --text:#e8eaf3; --muted:#9aa1bd; --ok:#2fbf5b; --bad:#e5484d; --acc:#61dafb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  header h1 { font-size:20px; margin:0; } header h1 span { color:var(--acc); }
+  main { padding:16px 24px; display:grid; gap:16px; grid-template-columns: 1fr; max-width:1400px; margin:0 auto; }
+  @media (min-width:1100px) { main { grid-template-columns: 2fr 1fr; } .full { grid-column: 1 / -1; } }
+  section { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; overflow:auto; }
+  h2 { font-size:15px; margin:0 0 12px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+  button { background:#2b3150; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 12px; cursor:pointer; font-size:14px; }
+  button:hover { border-color:var(--acc); }
+  button.on { background:var(--ok); border-color:var(--ok); color:#06210f; font-weight:600; }
+  button.danger { background:var(--bad); border-color:var(--bad); }
+  input { background:#121420; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:14px; }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th, td { border-bottom:1px solid var(--line); padding:6px 8px; text-align:left; white-space:nowrap; }
+  th { color:var(--muted); font-weight:600; position:sticky; top:0; background:var(--card); }
+  .modules { display:grid; grid-template-columns: repeat(auto-fill, minmax(230px,1fr)); gap:10px; }
+  .mod { border:1px solid var(--line); border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:6px; }
+  .mod small { color:var(--muted); }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; }
+  .logs { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:12px; max-height:420px; overflow:auto; }
+  .logs div { padding:3px 0; border-bottom:1px dashed var(--line); }
+  .muted { color:var(--muted); }
+  #login { max-width:360px; margin:12vh auto; text-align:center; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .ok { color:var(--ok); } .stuck { color:#ffb020; }
+  .team { padding:1px 8px; border-radius:99px; font-size:12px; color:#fff; }
+</style>
+</head>
+<body>
+<div id="login">
+  <h1>🎮 Painel do Professor</h1>
+  <p class="muted">React Native Quest</p>
+  <div class="row" style="justify-content:center">
+    <input id="pwd" type="password" placeholder="Senha (ADMIN_SENHA)" autofocus />
+    <button id="enter">Entrar</button>
+  </div>
+  <p id="err" style="color:var(--bad)"></p>
+</div>
+
+<div id="app" hidden>
+  <header>
+    <h1>🎮 React Native Quest — <span>Painel do Professor</span></h1>
+    <span class="muted" id="summary"></span>
+    <div class="row" style="margin-left:auto">
+      <button onclick="download('export.json')">⬇ JSON</button>
+      <button onclick="download('export.csv')">⬇ CSV</button>
+      <button class="danger" onclick="resetAll()">Resetar progresso</button>
+    </div>
+  </header>
+  <main>
+    <section class="full">
+      <h2>Módulos (portas do mapa)</h2>
+      <div class="modules" id="modules"></div>
+    </section>
+    <section>
+      <h2>Jogadores</h2>
+      <table id="players"></table>
+    </section>
+    <section>
+      <h2>Anúncio para a turma</h2>
+      <div class="row">
+        <input id="announce" placeholder="Ex.: 5 minutos para o fim!" style="flex:1" />
+        <button onclick="sendAnnounce()">Enviar</button>
+      </div>
+      <h2 style="margin-top:18px">Placar das equipes</h2>
+      <div id="teams"></div>
+    </section>
+    <section class="full">
+      <h2>Quem completou cada desafio</h2>
+      <table id="matrix"></table>
+    </section>
+    <section class="full">
+      <h2>Logs</h2>
+      <div class="logs" id="logs"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+  const TEAM_COLORS = { azul:'#2f7bff', verde:'#2fbf5b', laranja:'#ff8a1f', roxo:'#9b4dff' };
+  let senha = sessionStorage.getItem('rnq_admin') || '';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+  async function api(path, opts = {}) {
+    const res = await fetch('/admin/' + path, { ...opts, headers: { 'Content-Type':'application/json', 'x-admin-senha': senha, ...(opts.headers||{}) } });
+    if (res.status === 401) { showLogin('Senha inválida'); throw new Error('401'); }
+    return res.json();
+  }
+
+  function showLogin(msg) { $('login').hidden = false; $('app').hidden = true; $('err').textContent = msg || ''; }
+
+  async function login() {
+    senha = $('pwd').value;
+    try { await api('check'); sessionStorage.setItem('rnq_admin', senha); start(); } catch {}
+  }
+  $('enter').onclick = login;
+  $('pwd').onkeydown = (e) => e.key === 'Enter' && login();
+
+  function start() { $('login').hidden = true; $('app').hidden = false; refresh(); setInterval(refresh, 2500); }
+
+  async function toggle(id, unlock) { await api(`modules/${id}/${unlock ? 'unlock' : 'lock'}`, { method:'POST' }); refresh(); }
+  async function sendAnnounce() { const text = $('announce').value; if (!text) return; await api('announce', { method:'POST', body: JSON.stringify({ text }) }); $('announce').value=''; }
+  async function resetAll() { if (!confirm('Apagar TODO o progresso dos alunos? Isso não pode ser desfeito.')) return; await api('reset', { method:'POST' }); refresh(); }
+  function download(file) { window.open(`/admin/${file}?senha=${encodeURIComponent(senha)}`, '_blank'); }
+
+  async function refresh() {
+    const [data, logs] = await Promise.all([api('progress'), api('logs')]);
+    const online = new Set(data.online);
+    $('summary').textContent = `${online.size} online · ${data.players.length} aluno(s) registrados`;
+
+    $('modules').innerHTML = data.modules.map((m) => `
+      <div class="mod" style="border-left:4px solid ${m.color}">
+        <b>${m.emoji} ${m.id}. ${esc(m.name)}</b>
+        <small>${m.components.join(', ')}</small>
+        <small>${data.players.filter((p) => p.modulesCompleted.includes(m.id)).length} concluíram</small>
+        <button class="${m.unlocked ? 'on' : ''}" onclick="toggle(${m.id}, ${!m.unlocked})">${m.unlocked ? '🔓 Liberado (clique p/ trancar)' : '🔒 Trancado (clique p/ liberar)'}</button>
+      </div>`).join('');
+
+    const players = [...data.players].sort((a, b) => b.xp - a.xp);
+    $('players').innerHTML = `<tr><th></th><th>Nome</th><th>Equipe</th><th>Nível</th><th>XP</th><th>🪙</th><th>🤝</th><th>Desafios</th><th>Módulos</th><th>Acertos</th></tr>` +
+      players.map((p) => `<tr>
+        <td><span class="dot" style="background:${online.has(p.id) ? 'var(--ok)' : '#555'}"></span></td>
+        <td><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</td>
+        <td><span class="team" style="background:${TEAM_COLORS[p.team]}">${p.team}</span></td>
+        <td>${Math.floor(p.xp / 100) + 1}</td><td>${p.xp}</td><td>${p.coins}</td><td>${p.coopPoints}</td>
+        <td>${Object.keys(p.completed).length}</td>
+        <td>${p.modulesCompleted.map((id) => '🏆' + id).join(' ') || '-'}</td>
+        <td>${p.totalCorrect}/${p.totalAttempts}</td>
+      </tr>`).join('');
+
+    const stations = data.modules.flatMap((m) => m.stations.map((s) => ({ ...s, moduleId: m.id })));
+    $('matrix').innerHTML = `<tr><th>Aluno</th>${stations.map((s) => `<th title="${esc(s.title)}">${s.emoji} ${s.id}</th>`).join('')}</tr>` +
+      players.map((p) => `<tr><td>${esc(p.name)}</td>${stations.map((s) => {
+        const c = p.completed[s.id];
+        return `<td>${c ? `<span class="ok" title="${c.attempts} tentativa(s), ${Math.round(c.timeMs/1000)}s">✅${c.helped ? '🤝' : ''}</span>` : '<span class="muted">·</span>'}</td>`;
+      }).join('')}</tr>`).join('');
+
+    $('teams').innerHTML = Object.entries(data.teamTotals).map(([t, xp]) =>
+      `<div class="row" style="margin:4px 0"><span class="team" style="background:${TEAM_COLORS[t]}">${t}</span> ${xp} XP</div>`).join('');
+
+    $('logs').innerHTML = logs.map((l) => `<div><span class="muted">${new Date(l.at).toLocaleTimeString('pt-BR')}</span> ${esc(l.text)}</div>`).join('');
+  }
+
+  if (senha) api('check').then(start).catch(() => showLogin());
+</script>
+</body>
+</html>

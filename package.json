@@ -1,0 +1,22 @@
+{
+  "name": "react-native-quest",
+  "version": "0.1.0",
+  "private": true,
+  "description": "React Native Quest: jogo educacional multiplayer local (navegador) para ensinar componentes do React Native",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "start": "npm run build && npm run serve",
+    "build": "npm --workspace client run build",
+    "serve": "npm --workspace server run start",
+    "dev:server": "npm --workspace server run dev",
+    "dev:client": "npm --workspace client run dev",
+    "typecheck": "npm --workspace server run typecheck && npm --workspace client run typecheck",
+    "sounds": "node scripts/generate-sounds.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
