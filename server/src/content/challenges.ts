@@ -11,8 +11,12 @@
  *  - o chefe mistura perguntas de todas as estações do módulo.
  */
 
+import type { UIBlock, UINode } from '../../../shared/types';
+
 export interface QuizDef {
   prompt: string;
+  /** código mostrado depois do acerto (padrão: o código da demo, em DEMO_CODE) */
+  reveal?: string;
   /** demonstração viva no cliente (client/src/ui/demos.tsx) */
   demo?: string;
   code?: string;
@@ -43,9 +47,12 @@ export interface MatchDef {
 
 export interface BuildDef {
   prompt: string;
-  blueprint: string;
-  slots: { id: string; label: string; accept: string[] }[];
-  palette: string[];
+  /** tela-objetivo: o aluno precisa montar a mesma árvore de componentes */
+  target: UINode;
+  /** blocos da paleta (inclua distratores!) */
+  blocks: UIBlock[];
+  /** estilos do StyleSheet.create do desafio */
+  styles: Record<string, Record<string, string | number>>;
   explanation: string;
   hints: string[];
 }
@@ -460,6 +467,34 @@ const m6Bug: BugDef[] = [
 ];
 
 // ======================================================================
+// Código "por trás da tela" de cada demo (mostrado depois do acerto)
+// ======================================================================
+
+export const DEMO_CODE: Record<string, string> = {
+  text_label: "<Text style={{ fontSize: 26, fontWeight: '800' }}>\n  Olá, turma! 👋\n</Text>",
+  image_photo: "<Image\n  source={require('./avatar.png')}\n  style={{ width: 140, height: 140, borderRadius: 16 }}\n/>",
+  view_boxes: "<View style={{ backgroundColor: '#ffcdd2', padding: 16 }}>\n  <View style={{ backgroundColor: '#90caf9', padding: 16 }}>\n    <View style={{ flexDirection: 'row' }}>\n      <View style={{ flex: 1, backgroundColor: '#a5d6a7' }} />\n      <View style={{ flex: 1, backgroundColor: '#fff59d' }} />\n    </View>\n  </View>\n</View>",
+  stylesheet_before_after: "const styles = StyleSheet.create({\n  card: { backgroundColor: '#6c3ce1', borderRadius: 14, padding: 16 },\n  titulo: { color: '#fff', fontSize: 20, fontWeight: '800' },\n});\n\n<View style={styles.card}>\n  <Text style={styles.titulo}>Promoção de hoje</Text>\n</View>",
+  safearea_notch: "<SafeAreaView style={{ flex: 1 }}>\n  <View style={styles.cabecalho}>\n    <Text>Minhas Mensagens</Text>\n  </View>\n</SafeAreaView>",
+  pressable_card: "<Pressable\n  onPress={() => setLikes(likes + 1)}\n  style={({ pressed }) => ({\n    backgroundColor: pressed ? '#ffe082' : '#fff8e1',\n  })}\n>\n  <Text>🍕 Pizza Grande</Text>\n</Pressable>",
+  button_simple: "<Button\n  title={aberta ? 'Fechar porta' : 'Abrir porta'}\n  onPress={() => setAberta(!aberta)}\n/>",
+  textinput_typing: "const [senha, setSenha] = useState('');\n\n<TextInput\n  value={senha}\n  onChangeText={setSenha}\n  placeholder=\"digite aqui…\"\n/>",
+  switch_toggle: "const [ligado, setLigado] = useState(false);\n\n<Switch value={ligado} onValueChange={setLigado} />",
+  flatlist_many: "<FlatList\n  data={livros}  // 1000 itens\n  keyExtractor={(livro) => livro.id}\n  renderItem={({ item }) => <Text>{item.titulo}</Text>}\n/>",
+  sectionlist_groups: "<SectionList\n  sections={[\n    { title: '🚀 Ficção', data: ['Duna', 'Fundação'] },\n    { title: '🔬 Ciência', data: ['Cosmos'] },\n  ]}\n  renderSectionHeader={({ section }) => <Text>{section.title}</Text>}\n  renderItem={({ item }) => <Text>{item}</Text>}\n/>",
+  scrollview_few: "<ScrollView>\n  <Text>Sobre a escola</Text>\n  <Text>Fundada em 1990…</Text>\n  <Text>Contato: contato@escola.com</Text>\n</ScrollView>",
+  alert_confirm: "Alert.alert('Excluir item?', 'Essa ação não pode ser desfeita.', [\n  { text: 'Cancelar', style: 'cancel' },\n  { text: 'Excluir', onPress: excluir },\n]);",
+  modal_dialog: "<Modal visible={aberto} transparent animationType=\"fade\">\n  <View style={styles.caixa}>\n    <Text>💬 Comentários</Text>\n    <Button title=\"Fechar\" onPress={() => setAberto(false)} />\n  </View>\n</Modal>",
+  activity_spinner: "{carregando\n  ? <ActivityIndicator size=\"large\" color=\"#6c3ce1\" />\n  : <Text>✅ 12 mensagens novas</Text>}",
+  nav_stack: "// React Navigation\nconst Stack = createNativeStackNavigator();\n\n<Stack.Navigator>\n  <Stack.Screen name=\"Produtos\" component={Produtos} />\n  <Stack.Screen name=\"Detalhes\" component={Detalhes} />\n</Stack.Navigator>\n\nnavigation.navigate('Detalhes');",
+  nav_tabs: "// React Navigation\nconst Tab = createBottomTabNavigator();\n\n<Tab.Navigator>\n  <Tab.Screen name=\"Início\" component={Inicio} />\n  <Tab.Screen name=\"Busca\" component={Busca} />\n  <Tab.Screen name=\"Perfil\" component={Perfil} />\n</Tab.Navigator>",
+  nav_drawer: "// React Navigation\nconst Drawer = createDrawerNavigator();\n\n<Drawer.Navigator>\n  <Drawer.Screen name=\"Início\" component={Inicio} />\n  <Drawer.Screen name=\"Configurações\" component={Config} />\n</Drawer.Navigator>",
+  state_counter: "const [contador, setContador] = useState(0);\n\n<Text>{contador}</Text>\n<Button title=\"+1\" onPress={() => setContador(contador + 1)} />",
+  storage_save: "await AsyncStorage.setItem('nome', nome);\n\n// ao abrir o app:\nconst salvo = await AsyncStorage.getItem('nome');",
+  context_theme: "const Tema = createContext();\n\n<Tema.Provider value={{ escuro, alternar }}>\n  <TelaA />\n  <TelaB />\n</Tema.Provider>\n\n// dentro das telas:\nconst { escuro } = useContext(Tema);",
+};
+
+// ======================================================================
 // Mapa estação -> conteúdo
 // ======================================================================
 
@@ -485,17 +520,44 @@ export const STATION_CONTENT: Record<string, StationContent> = {
   m1_build: {
     type: 'build_ui',
     build: {
-      prompt: 'Monte um CARTÃO DE PERFIL: escolha o componente certo para cada parte. A prévia mostra o resultado de verdade!',
-      blueprint: 'profile_card',
-      slots: [
-        { id: 'container', label: '📦 Caixa do cartão (container)', accept: ['View'] },
-        { id: 'photo', label: '🖼️ Foto do aluno', accept: ['Image'] },
-        { id: 'name', label: '🔤 Nome do aluno', accept: ['Text'] },
-        { id: 'style', label: '🎨 Estilos do cartão', accept: ['StyleSheet'] },
+      prompt: 'Monte o CARTÃO DE PERFIL igual à tela-objetivo. Use os blocos para escrever o JSX e escolha o estilo de cada componente.',
+      target: {
+        type: 'SafeAreaView',
+        style: 'tela',
+        children: [
+          {
+            type: 'View',
+            style: 'cartao',
+            children: [
+              { type: 'Image', style: 'foto' },
+              { type: 'Text', text: 'Ana Souza', style: 'nome' },
+              { type: 'Text', text: 'Dev mobile em treinamento 🚀', style: 'bio' },
+            ],
+          },
+        ],
+      },
+      blocks: [
+        { id: 'safe', type: 'SafeAreaView' },
+        { id: 'view', type: 'View' },
+        { id: 'img', type: 'Image' },
+        { id: 'nome', type: 'Text', text: 'Ana Souza' },
+        { id: 'bio', type: 'Text', text: 'Dev mobile em treinamento 🚀' },
+        { id: 'btn', type: 'Button', text: 'Seguir' },
+        { id: 'oi', type: 'Text', text: 'Olá!' },
       ],
-      palette: ['View', 'Text', 'Image', 'StyleSheet', 'SafeAreaView', 'Button'],
-      explanation: 'View como container, Image para a foto, Text para o nome e StyleSheet para deixar tudo bonito!',
-      hints: ['Olhe a prévia: ela mostra o que cada componente faz em cada lugar.', 'O estilo não aparece sozinho na tela — ele é aplicado nos outros.'],
+      styles: {
+        tela: { flex: 1, backgroundColor: '#f3effd', padding: 16 },
+        cartao: { backgroundColor: '#ffffff', borderRadius: 18, padding: 18, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e4dcff' },
+        foto: { width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: '#6c3ce1' },
+        nome: { fontSize: 20, fontWeight: '800', color: '#2d1b69' },
+        bio: { fontSize: 13, color: '#6b6b80' },
+      },
+      explanation: 'SafeAreaView protege a tela do notch, a View agrupa o cartão, Image mostra a foto, Text mostra os textos e o StyleSheet deixa tudo com cara de app!',
+      hints: [
+        'Comece de fora para dentro: o componente que envolve a tela inteira e respeita o notch.',
+        'Os textos e a foto ficam DENTRO da caixa do cartão. Selecione a View antes de inserir.',
+        'Cada componente tem um estilo com o mesmo "papel": o cartão usa styles.cartao, a foto styles.foto…',
+      ],
     },
   },
   m1_bug: { type: 'fix_bug', variants: m1Bug },
@@ -521,17 +583,46 @@ export const STATION_CONTENT: Record<string, StationContent> = {
   m2_build: {
     type: 'build_ui',
     build: {
-      prompt: 'Monte o PORTÃO DA SENHA do mercado: um rótulo, um campo de senha, "lembrar-me" e o botão de abrir.',
-      blueprint: 'password_gate',
-      slots: [
-        { id: 'label', label: '🔤 Rótulo "Senha do portão"', accept: ['Text'] },
-        { id: 'password', label: '⌨️ Campo para digitar a senha', accept: ['TextInput'] },
-        { id: 'remember', label: '🎚️ Lembrar-me (liga/desliga)', accept: ['Switch'] },
-        { id: 'open', label: '🚪 Botão "Abrir"', accept: ['Button', 'Pressable'] },
+      prompt: 'Monte o PORTÃO DA SENHA do mercado igual à tela-objetivo: título, campo de senha, "lembrar-me" e um botão personalizado.',
+      target: {
+        type: 'View',
+        style: 'tela',
+        children: [
+          { type: 'Text', text: '🔐 Portão do Mercado', style: 'titulo' },
+          { type: 'TextInput', text: 'Digite a senha', style: 'campo' },
+          {
+            type: 'View',
+            style: 'linha',
+            children: [{ type: 'Switch' }, { type: 'Text', text: 'Lembrar-me' }],
+          },
+          { type: 'Pressable', style: 'botao', children: [{ type: 'Text', text: 'Entrar', style: 'textoBotao' }] },
+        ],
+      },
+      blocks: [
+        { id: 'view', type: 'View' },
+        { id: 'titulo', type: 'Text', text: '🔐 Portão do Mercado' },
+        { id: 'campo', type: 'TextInput', text: 'Digite a senha' },
+        { id: 'switch', type: 'Switch' },
+        { id: 'lembrar', type: 'Text', text: 'Lembrar-me' },
+        { id: 'press', type: 'Pressable' },
+        { id: 'entrar', type: 'Text', text: 'Entrar' },
+        { id: 'btn', type: 'Button', text: 'Entrar' },
+        { id: 'img', type: 'Image' },
       ],
-      palette: ['Text', 'TextInput', 'Switch', 'Button', 'Pressable', 'Image', 'View'],
-      explanation: 'Text rotula, TextInput recebe a senha, Switch liga/desliga e Button (ou Pressable) dispara a ação.',
-      hints: ['Teste a prévia: tente digitar e ligar o interruptor.'],
+      styles: {
+        tela: { flex: 1, backgroundColor: '#fff8e1', padding: 20, paddingTop: 44, gap: 14 },
+        titulo: { fontSize: 20, fontWeight: '800', color: '#e65100' },
+        campo: { borderWidth: 2, borderColor: '#ffb300', borderRadius: 10, padding: 10, backgroundColor: '#fff' },
+        linha: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+        botao: { backgroundColor: '#ff8f00', padding: 12, borderRadius: 12, alignItems: 'center' },
+        textoBotao: { color: '#fff', fontWeight: '800', fontSize: 16 },
+      },
+      explanation: 'TextInput recebe a senha, Switch liga/desliga e o Pressable cria um botão com o visual que você quiser — o Button pronto não aceita estilos assim!',
+      hints: [
+        'Uma View com styles.linha coloca o Switch e o texto lado a lado.',
+        'O botão laranja tem um Text DENTRO dele. Qual componente clicável aceita filhos?',
+        'Button só tem "title": não dá para estilizar nem colocar filhos.',
+      ],
     },
   },
   m2_bug: { type: 'fix_bug', variants: m2Bug },

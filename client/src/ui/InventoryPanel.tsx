@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { COMPONENTS, MODULES } from '@shared/modules';
 import { useStore } from '../state/store';
+import { CompCard } from './CompCard';
 import { Overlay } from './Overlay';
 import { colors, ui } from './theme';
 
@@ -13,7 +14,7 @@ export function InventoryPanel({ onClose }: { onClose: () => void }) {
   const stationsTotal = MODULES.reduce((n, m) => n + m.stations.length, 0);
 
   return (
-    <Overlay title="🎒 Inventário" onClose={onClose} maxWidth={860}>
+    <Overlay title="🎒 Coleção de cartas" onClose={onClose} maxWidth={860}>
       <Text style={ui.muted}>
         ⭐ {p.xp} XP · 🪙 {p.coins} moedas · 🤝 {p.coopPoints} cooperação · ✅ {stationsDone}/{stationsTotal} desafios ·{' '}
         🎯 {p.totalCorrect}/{p.totalAttempts} respostas certas
@@ -33,19 +34,11 @@ export function InventoryPanel({ onClose }: { onClose: () => void }) {
       </View>
 
       <Text style={[ui.h2, { marginTop: 16 }]}>Cartas de componentes ({p.cards.length}/{Object.keys(COMPONENTS).length})</Text>
-      <Text style={[ui.muted, { marginBottom: 8 }]}>Derrote o chefe de cada módulo para ganhar as cartas dos componentes.</Text>
+      <Text style={[ui.muted, { marginBottom: 8 }]}>Aprenda com os Mestres para ganhar a carta de cada componente.</Text>
       <View style={styles.wrap}>
-        {Object.entries(COMPONENTS).map(([name, c]) => {
-          const has = p.cards.includes(name);
-          const mod = MODULES.find((m) => m.id === c.module)!;
-          return (
-            <View key={name} style={[styles.card, has ? { borderColor: mod.color, backgroundColor: '#262a3d' } : styles.cardLocked]}>
-              <Text style={{ fontSize: 26 }}>{has ? c.emoji : '🂠'}</Text>
-              <Text style={[ui.text, { fontWeight: '800', fontSize: 13 }]}>{has ? name : '???'}</Text>
-              <Text style={[ui.muted, { fontSize: 11, textAlign: 'center' }]}>{has ? c.use : `Módulo ${c.module}`}</Text>
-            </View>
-          );
-        })}
+        {Object.keys(COMPONENTS).map((name) => (
+          <CompCard key={name} name={name} locked={!p.cards.includes(name)} />
+        ))}
       </View>
 
       <Text style={[ui.h2, { marginTop: 16 }]}>Conquistas</Text>

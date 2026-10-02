@@ -36,7 +36,7 @@ function Toasts() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  toasts: { position: 'absolute', top: 60, left: 0, right: 0, alignItems: 'center', gap: 6 },
+  toasts: { position: 'absolute', top: 132, left: 0, right: 0, alignItems: 'center', gap: 6 },
   toast: {
     backgroundColor: 'rgba(18,20,28,0.95)',
     borderWidth: 2,

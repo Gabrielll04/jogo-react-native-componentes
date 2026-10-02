@@ -36,6 +36,7 @@ class GameState {
       if (!fs.existsSync(SAVE_FILE)) return;
       const data = JSON.parse(fs.readFileSync(SAVE_FILE, 'utf8')) as SaveData;
       this.progress = data.progress ?? {};
+      for (const p of Object.values(this.progress)) p.learned ??= []; // saves antigos
       for (const saved of data.modules ?? []) {
         const m = this.modules.find((x) => x.id === saved.id);
         if (m) m.unlocked = saved.unlocked;
@@ -97,6 +98,7 @@ class GameState {
         coopPoints: 0,
         completed: {},
         modulesCompleted: [],
+        learned: [],
         cards: [],
         achievements: [],
         totalAttempts: 0,
@@ -141,6 +143,7 @@ export const state = new GameState();
 // ------------- conquistas -------------
 
 export const ACHIEVEMENTS: Record<string, { title: string; emoji: string }> = {
+  aprendiz: { title: 'Aprendiz: primeira lição com um Mestre', emoji: '📚' },
   primeiro_acerto: { title: 'Primeiro acerto', emoji: '⭐' },
   sem_erros: { title: 'De primeira! (sem errar)', emoji: '🎯' },
   mentor: { title: 'Mentor: ajudou um colega a acertar', emoji: '🤝' },

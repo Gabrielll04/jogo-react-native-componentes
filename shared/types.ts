@@ -78,6 +78,8 @@ export interface PlayerProgress {
   coopPoints: number;
   completed: Record<string, CompletionRecord>;
   modulesCompleted: number[];
+  /** componentes aprendidos com os Mestres (lições) */
+  learned: string[];
   cards: string[];
   achievements: string[];
   totalAttempts: number;
@@ -104,13 +106,32 @@ export interface MatchPayload {
   right: { id: string; label: string }[];
 }
 
+/**
+ * Nó de interface (árvore JSX simplificada) usado no desafio "Monte a tela".
+ * Ex.: { type: 'View', style: 'card', children: [{ type: 'Text', text: 'Oi' }] }
+ */
+export interface UINode {
+  type: string;
+  text?: string;
+  style?: string;
+  children?: UINode[];
+}
+
+/** Bloco disponível na paleta do construtor de telas. */
+export interface UIBlock {
+  id: string;
+  type: string;
+  text?: string;
+}
+
 export interface BuildPayload {
   kind: 'build';
   prompt: string;
-  /** chave do "molde" de prévia (client/src/ui/blueprints.tsx) */
-  blueprint: string;
-  slots: { id: string; label: string }[];
-  palette: string[];
+  /** tela-objetivo (o aluno vê o resultado renderizado, não o código) */
+  target: UINode;
+  blocks: UIBlock[];
+  /** estilos disponíveis no StyleSheet.create do desafio */
+  styles: Record<string, Record<string, string | number>>;
 }
 
 export interface BugPayload {
@@ -123,8 +144,8 @@ export interface BugPayload {
 
 export type ChallengePayload = QuizPayload | MatchPayload | BuildPayload | BugPayload;
 
-/** Resposta: quiz -> string; bug -> id da opção; match/build -> mapa id->valor */
-export type ChallengeAnswer = string | Record<string, string>;
+/** Resposta: quiz -> string; bug -> id da opção; match -> mapa id->id; build -> árvore UINode */
+export type ChallengeAnswer = string | Record<string, string> | UINode;
 
 export interface BossState {
   round: number;
@@ -164,6 +185,8 @@ export interface AnswerResult {
   cardsGained?: string[];
   /** próxima rodada (chefe) ou mesma questão para tentar de novo */
   next?: ChallengeView;
+  /** código "por trás da tela", mostrado depois do acerto */
+  reveal?: string;
 }
 
 export interface HelpRequest {

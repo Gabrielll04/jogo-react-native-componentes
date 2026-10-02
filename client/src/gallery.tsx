@@ -1,13 +1,16 @@
+import './fonts';
 /**
  * Galeria de componentes (http://IP:3000/demos.html)
  * Mostra todas as demonstrações vivas e moldes de montagem, com o nome do
  * componente — útil para o professor projetar durante a explicação.
  */
+import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ScrollView, Text, View } from 'react-native';
 import { COMPONENTS, MODULES } from '@shared/modules';
-import { Blueprint } from './ui/blueprints';
+import { Btn } from './ui/Btn';
 import { DEMOS } from './ui/demos';
+import { LessonOverlay } from './ui/LessonOverlay';
 import { colors, ui } from './ui/theme';
 
 /** qual componente cada demo ilustra (aqui pode revelar: é material de aula) */
@@ -21,11 +24,26 @@ const DEMO_COMPONENT: Record<string, string> = {
 };
 
 function Gallery() {
+  const [lesson, setLesson] = useState<string | null>(() => new URLSearchParams(location.search).get('licao'));
   return (
+    <View style={{ flex: 1 }}>
     <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={{ padding: 24, gap: 28 }}>
       <View>
         <Text style={ui.title}>⚛️ Galeria de Componentes</Text>
         <Text style={ui.muted}>Todas as demonstrações do jogo, funcionando de verdade com react-native-web. Interaja com elas!</Text>
+      </View>
+      <View style={[ui.panel, { gap: 10 }]}>
+        <Text style={ui.h2}>🧙 Lições dos Mestres (para projetar na aula)</Text>
+        {MODULES.map((m) => (
+          <View key={m.id} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            <Text style={[ui.muted, { width: 230 }]}>
+              {m.emoji} {m.id}. {m.name}
+            </Text>
+            {m.components.map((c) => (
+              <Btn key={c} small color={m.color} title={`<${c}>`} onPress={() => setLesson(c)} />
+            ))}
+          </View>
+        ))}
       </View>
       {MODULES.map((m) => (
         <View key={m.id} style={{ gap: 12 }}>
@@ -47,20 +65,9 @@ function Gallery() {
           </View>
         </View>
       ))}
-      <View style={{ gap: 12 }}>
-        <Text style={[ui.h2, { fontSize: 20 }]}>🛠️ Moldes de montagem (respostas certas)</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 20 }}>
-          <View style={[ui.panel, { alignItems: 'center', gap: 8 }]}>
-            <Text style={ui.text}>Cartão de perfil: View + Image + Text + StyleSheet</Text>
-            <Blueprint id="profile_card" assign={{ container: 'View', photo: 'Image', name: 'Text', style: 'StyleSheet' }} />
-          </View>
-          <View style={[ui.panel, { alignItems: 'center', gap: 8 }]}>
-            <Text style={ui.text}>Portão da senha: Text + TextInput + Switch + Button</Text>
-            <Blueprint id="password_gate" assign={{ label: 'Text', password: 'TextInput', remember: 'Switch', open: 'Button' }} />
-          </View>
-        </View>
-      </View>
     </ScrollView>
+    {lesson ? <LessonOverlay component={lesson} onClose={() => setLesson(null)} /> : null}
+    </View>
   );
 }
 

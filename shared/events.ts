@@ -18,6 +18,7 @@ export const EV = {
   BUY_HINT: 'buy_hint',
   SEND_HINT: 'send_hint', // {targetId}
   EMOTE: 'emote', // {emote}
+  LESSON_COMPLETE: 'lesson_complete', // {component}
 
   // servidor -> cliente
   WELCOME: 'welcome', // {playerId, progress, modules, players}

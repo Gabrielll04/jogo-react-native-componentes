@@ -4,24 +4,42 @@ Jogo educacional **multiplayer local**, 2D visto de cima, para ensinar component
 React Native. Roda **no navegador do computador** — o professor inicia o servidor e os
 alunos abrem `http://IP_DO_PROFESSOR:3000`. Não precisa de celular nem do Expo Go.
 
-Os desafios mostram **componentes reais do React Native funcionando** (via
-`react-native-web`): uma FlatList com 1000 itens, um Modal que abre de verdade, um
-TextInput em que se digita, a "tela vermelha" de erro quando se coloca texto fora de
-`<Text>`…
+O aluno não só responde perguntas: ele **aprende, experimenta e aplica**. Tudo usa
+**componentes reais do React Native funcionando** (via `react-native-web`).
+
+## Como o aluno aprende (o ciclo de cada módulo)
+
+1. **Mestres 🧙 (aprender)** — cada prédio tem um Mestre por componente. A lição tem 4 etapas:
+   **Conheça** (o Mestre explica, com exemplo de código e o resultado no celular) →
+   **Experimente** (playground: o aluno clica nos valores *dentro do código* — `fontSize`,
+   `flexDirection`, `secureTextEntry`… — e vê o celular mudar ao vivo, cumprindo mini-missões) →
+   **Teste** (pergunta rápida com explicação) → **Carta** do componente para a coleção.
+2. **Terminais 💻 (praticar)** — liberados quando o aluno aprende todos os componentes do prédio:
+   - 🔮 **Quiz** com demonstração viva ("que componente é esse?")
+   - 🧩 **Ligue** componente ↔ uso
+   - 🛠️ **Monte a tela**: o aluno escreve o **JSX com blocos**, escolhe estilos do `StyleSheet`
+     e compara o celular dele com a tela-objetivo; o servidor aponta o primeiro erro
+     ("Dentro de `<View>` deveria haver 3 componentes…")
+   - 🐞 **Conserte o bug** no código
+   - Depois de cada acerto aparece **"🔍 Por trás da tela"**: o código que produz aquilo.
+3. **Guardião ⚔️ (aplicar)** — batalha individual com HP, corações e perguntas sorteadas do módulo.
+   Vencer dá a insígnia do módulo.
 
 ## Recursos
 
+- 📜 **Missão atual** sempre visível + seta amarela guia + marcador ▼ + **minimapa**: o aluno nunca fica perdido
+- ⚛️ **Tutorial** com o mascote Reacto na primeira vez
+- 🧑‍🎨 Personagens em **pixel art animados** (4 direções), Mestres com ❗/✓, terminais coloridos por tipo
 - 🏰 Lobby com jogadores conectados, equipes, placar e emotes
-- 🗺️ Mundo 2D (Phaser 3) com 6 prédios-módulo, portas, placas explicativas e estações de desafio
 - 🎮 Movimento com **WASD/setas**, câmera que segue o jogador, outros alunos aparecem em tempo real
 - 🔒 Portas abrem/fecham na hora quando o professor libera/tranca módulos no painel
-- 🧩 5 tipos de desafio: `quiz_component`, `match_use`, `build_ui`, `fix_bug`, `boss_challenge`
-- ⚔️ Chefe por módulo (individual, sem dicas, com corações) — vencer dá **cartas** dos componentes
+- ✅ Feedback estilo Duolingo, confete, chefe que treme ao levar dano
 - 🤝 Cooperação: colega travado aparece com ❓; quem já concluiu pode enviar uma dica (custa moedas, nunca entrega a resposta); se ele acertar, ambos ganham pontos
 - ⭐ XP, níveis, moedas, conquistas, insígnias e inventário de cartas
 - 🔊 Efeitos sonoros (Howler.js) após interação do usuário
 - 👩‍🏫 Painel do professor em `/admin`: liberar módulos, ver progresso/quem completou cada desafio, logs, anúncios, exportar JSON/CSV, resetar
-- 🖼️ Galeria de componentes em `/demos.html` para projetar durante a aula
+- 🖼️ Galeria em `/demos.html`: todas as demos e **todas as 21 lições** para o professor projetar em aula
+  (ex.: `/demos.html?licao=FlatList`)
 
 ## Início rápido
 
@@ -65,10 +83,10 @@ Troque a senha: `ADMIN_SENHA=minhaSenha npm start` (no Windows PowerShell:
 │   └── public/admin.html      painel do professor
 ├── client/            Vite + React + TypeScript + react-native-web + Phaser 3 + Howler
 │   ├── vite.config.ts         alias react-native → react-native-web
-│   ├── src/game/              cena Phaser (mapa, colisão, portas, jogadores)
+│   ├── src/game/              cena Phaser (mapa, sprites, missão, minimapa) + quest.ts
+│   ├── src/lessons/           ← LIÇÕES DOS MESTRES (playgrounds dos 21 componentes)
 │   ├── src/screens/           Conexão, Lobby, Mundo (UI feita com componentes RN)
-│   ├── src/ui/demos.tsx       demonstrações vivas dos componentes
-│   ├── src/ui/blueprints.tsx  prévias dos desafios "monte a tela"
+│   ├── src/ui/                janelas de lição/desafio, editor de código, demos vivas
 │   └── public/sounds/         efeitos sonoros (.wav)
 ├── shared/            tipos, eventos, módulos e mapa usados pelos dois lados
 ├── scripts/generate-sounds.mjs  gera os sons 8-bit

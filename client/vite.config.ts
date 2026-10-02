@@ -21,6 +21,8 @@ export default defineConfig(({ mode }) => ({
   define: {
     // algumas libs do ecossistema RN esperam essa global
     __DEV__: JSON.stringify(mode !== 'production'),
+    // o Animated do react-native-web referencia "global" (variável do Node/React Native)
+    global: 'globalThis',
   },
   server: {
     host: true, // acessível na rede local também em modo dev

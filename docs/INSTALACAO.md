@@ -101,7 +101,8 @@ react-native-quest/
 │   ├── types.ts              tipos (jogador, desafio, resposta…)
 │   ├── events.ts             nomes dos eventos Socket.io, equipes, regras (custos, XP)
 │   ├── modules.ts            módulos, estações e catálogo de componentes
-│   └── map.ts                gerador do mapa (tiles, portas, estações, placas)
+│   ├── map.ts                gerador do mapa (tiles, portas, Mestres, terminais, placas)
+│   └── jsx.ts                árvore JSX do "Monte a tela": gera o código e compara com o objetivo
 ├── server/
 │   ├── src/index.ts          Express, rotas, IP local + QR Code
 │   ├── src/game.ts           eventos Socket.io e regras do jogo
@@ -119,9 +120,10 @@ react-native-quest/
 │       ├── net/socket.ts     conexão e ações do jogador
 │       ├── state/store.ts    estado global (useSyncExternalStore)
 │       ├── audio/sound.ts    playSound(nome) com Howler
-│       ├── game/             Phaser: WorldScene, GameCanvas, bridge
-│       ├── screens/          ConnectScreen, LobbyScreen, WorldScreen
-│       └── ui/               desafios, demos, moldes, painéis
+│       ├── game/             Phaser: WorldScene, sprites (pixel art), quest (missões), bridge
+│       ├── lessons/          lições dos Mestres (21 componentes)
+│       ├── screens/          ConnectScreen, LobbyScreen, WorldScreen (HUD, tutorial)
+│       └── ui/               lição, desafios, editor de código, demos, cartas, painéis
 ├── scripts/generate-sounds.mjs
 └── docs/
 ```

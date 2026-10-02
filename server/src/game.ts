@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import type { Server, Socket } from 'socket.io';
 import { AVATAR_COLORS, EMOTES, EV, RULES, TEAMS } from '../../shared/events';
 import { buildWorld, MAP_H, MAP_W, TILE } from '../../shared/map';
-import { findStation, levelFromXp, MODULES } from '../../shared/modules';
+import { COMPONENTS, findStation, levelFromXp, MODULES } from '../../shared/modules';
 import type {
   AnswerResult,
   ChallengeAnswer,
@@ -280,6 +280,12 @@ export function setupGame(server: Server) {
         if (Math.hypot(cx - me.x, cy - me.y) > TILE * 2.5) return notice(socket, 'Chegue mais perto da estação!', 'warn');
       }
 
+      // aprender antes de praticar: todas as lições do módulo com os Mestres
+      const notLearned = found.module.components.filter((c) => !p.learned.includes(c));
+      if (notLearned.length) {
+        return notice(socket, `📚 Primeiro aprenda com os Mestres: ${notLearned.map((c) => `<${c}>`).join(', ')}`, 'warn');
+      }
+
       // chefe só depois das outras estações do módulo
       if (found.station.type === 'boss_challenge') {
         const missing = found.module.stations.filter((s) => s.type !== 'boss_challenge' && !p.completed[s.id]);
@@ -316,15 +322,17 @@ export function setupGame(server: Server) {
           if (inst.boss.bossHp > 0) {
             // dano no chefe: próxima rodada
             inst.boss.round++;
+            const { reveal, explanation } = inst.round;
             nextBossRound(inst);
             sound(socket, 'correct');
             result = {
               correct: true,
-              explanation: `💥 Golpe certeiro! ${inst.boss.bossName} perdeu 1 de vida.`,
+              explanation: `💥 Golpe certeiro! ${explanation}`,
               xpGained: 0,
               coinsGained: 0,
               completed: false,
               next: toView(inst),
+              reveal,
             };
           } else {
             result = completeStation(me, inst, p);
@@ -430,6 +438,37 @@ export function setupGame(server: Server) {
       afterProgressChange(me);
     });
 
+    // ---- lições dos Mestres (aprender um componente)
+    socket.on(EV.LESSON_COMPLETE, (data: { component: string }) => {
+      if (!me || !me.inWorld) return;
+      const p = state.progress[me.playerId];
+      const component = String(data?.component ?? '');
+      const info = COMPONENTS[component];
+      const mentor = world.mentors.find((m) => m.component === component);
+      if (!info || !mentor) return;
+      if (!state.isUnlocked(info.module)) return notice(socket, '🔒 Módulo trancado pelo professor.', 'warn');
+      const cx = mentor.x * TILE + TILE / 2;
+      const cy = mentor.y * TILE + TILE / 2;
+      if (Math.hypot(cx - me.x, cy - me.y) > TILE * 3) return notice(socket, 'Volte até o Mestre para concluir a lição.', 'warn');
+      if (p.learned.includes(component)) return; // revisão: sem recompensa
+
+      p.learned.push(component);
+      if (!p.cards.includes(component)) p.cards.push(component);
+      p.xp += 15;
+      p.coins += 5;
+      sound(socket, 'achievement');
+      notice(socket, `🃏 Nova carta: <${component}>! +15 XP`, 'success');
+      award(socket.id, p, 'aprendiz');
+      if (p.cards.length >= 10) award(socket.id, p, 'colecionador');
+      const mod = MODULES.find((m) => m.id === info.module)!;
+      if (mod.components.every((c) => p.learned.includes(c))) {
+        notice(socket, `🎓 Você aprendeu todos os componentes de ${mod.name}! Os terminais de desafio foram liberados.`, 'success');
+      }
+      state.log(`${p.name} aprendeu <${component}>`);
+      io.emit(EV.CHALLENGE_COMPLETED, { playerId: p.id, name: p.name, stationId: `lesson:${component}`, title: `aprendeu <${component}>` });
+      afterProgressChange(me);
+    });
+
     // ---- emotes
     socket.on(EV.EMOTE, (data: { emote: string }) => {
       if (!me) return;
@@ -492,6 +531,7 @@ function completeStation(me: OnlinePlayer, inst: Instance, p: PlayerProgress): A
     xpGained: xp,
     coinsGained: coins,
     completed: true,
+    reveal: inst.round.reveal,
   };
 
   if (firstTime && inst.wrong === 0) award(me.socketId, p, 'sem_erros');
@@ -519,10 +559,7 @@ function completeStation(me: OnlinePlayer, inst: Instance, p: PlayerProgress): A
     result.bossDefeated = true;
     if (!p.modulesCompleted.includes(mod.id)) {
       p.modulesCompleted.push(mod.id);
-      const newCards = mod.components.filter((c) => !p.cards.includes(c));
-      p.cards.push(...newCards);
       result.moduleCompleted = mod.id;
-      result.cardsGained = newCards;
       // fanfarra de "módulo concluído" logo depois do som do chefe
       setTimeout(() => sound(me.socketId, 'module'), 1400);
       state.log(`🏆 ${p.name} concluiu o módulo ${mod.id} (${mod.name})`);

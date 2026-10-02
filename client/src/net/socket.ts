@@ -154,18 +154,23 @@ export const actions = {
     setState({ screen: 'lobby', challenge: null, lastResult: null });
   },
   move: (() => {
-    // throttle: no máximo uma mensagem a cada RULES.MOVE_SEND_MS
+    // throttle: no máximo uma mensagem a cada RULES.MOVE_SEND_MS,
+    // sempre enviando a ÚLTIMA posição quando o jogador para (trailing)
     let last = 0;
-    let lastX = -1;
-    let lastY = -1;
+    let pending: { x: number; y: number } | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const flush = () => {
+      timer = null;
+      if (!pending) return;
+      last = performance.now();
+      socket?.emit(EV.PLAYER_MOVE, { x: Math.round(pending.x), y: Math.round(pending.y) });
+      pending = null;
+    };
     return (x: number, y: number) => {
-      const now = performance.now();
-      if (now - last < RULES.MOVE_SEND_MS) return;
-      if (Math.abs(x - lastX) < 0.5 && Math.abs(y - lastY) < 0.5) return;
-      last = now;
-      lastX = x;
-      lastY = y;
-      socket?.volatile.emit(EV.PLAYER_MOVE, { x: Math.round(x), y: Math.round(y) });
+      pending = { x, y };
+      const wait = RULES.MOVE_SEND_MS - (performance.now() - last);
+      if (wait <= 0) flush();
+      else if (!timer) timer = setTimeout(flush, wait);
     };
   })(),
   enterArea(moduleId: number) {
@@ -204,4 +209,9 @@ export const actions = {
 export function moduleName(id: number) {
   const m = MODULES.find((x) => x.id === id);
   return m ? `${m.emoji} ${m.name}` : `Módulo ${id}`;
+}
+
+/** Lição com um Mestre concluída (o servidor registra a carta e o XP). */
+export function lessonComplete(component: string) {
+  socket?.emit(EV.LESSON_COMPLETE, { component });
 }

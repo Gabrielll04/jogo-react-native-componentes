@@ -6,7 +6,8 @@ dois arquivos:
 | Arquivo | O que tem |
 |---|---|
 | `shared/modules.ts` | Módulos, estações (o que aparece no mapa), catálogo de componentes (cartas) |
-| `server/src/content/challenges.ts` | Perguntas, respostas, dicas e explicações de cada estação |
+| `client/src/lessons/*.tsx` | **Lições dos Mestres**: explicação, código editável, prévia, missões e teste |
+| `server/src/content/challenges.ts` | Perguntas, respostas, dicas e explicações dos terminais e chefes |
 
 O gabarito fica **só no servidor**: o navegador recebe as perguntas sem a resposta e com as
 alternativas embaralhadas, e é o servidor que corrige. Depois de editar, reinicie o servidor
@@ -64,23 +65,35 @@ match: {
 }
 ```
 
-**`build_ui`** — `build: BuildDef` (o aluno escolhe um componente para cada parte da tela)
+**`build_ui`** — `build: BuildDef` ("Monte a tela": o aluno escreve o JSX com blocos)
 ```ts
 build: {
-  prompt: 'Monte um CARTÃO DE PERFIL...',
-  blueprint: 'profile_card',            // molde da prévia em client/src/ui/blueprints.tsx
-  slots: [
-    { id: 'container', label: '📦 Caixa do cartão', accept: ['View'] },
-    { id: 'photo',     label: '🖼️ Foto',            accept: ['Image'] },
-    { id: 'name',      label: '🔤 Nome',            accept: ['Text'] },
-    { id: 'style',     label: '🎨 Estilos',         accept: ['StyleSheet'] },
+  prompt: 'Monte o CARTÃO DE PERFIL igual à tela-objetivo…',
+  // a tela-objetivo: o aluno vê o RESULTADO renderizado e precisa montar a mesma árvore
+  target: {
+    type: 'SafeAreaView', style: 'tela',
+    children: [
+      { type: 'View', style: 'cartao', children: [
+        { type: 'Image', style: 'foto' },
+        { type: 'Text', text: 'Ana Souza', style: 'nome' },
+      ] },
+    ],
+  },
+  // blocos da paleta (inclua distratores!)
+  blocks: [
+    { id: 'safe', type: 'SafeAreaView' }, { id: 'view', type: 'View' }, { id: 'img', type: 'Image' },
+    { id: 'nome', type: 'Text', text: 'Ana Souza' }, { id: 'btn', type: 'Button', text: 'Seguir' },
   ],
-  palette: ['View', 'Text', 'Image', 'StyleSheet', 'SafeAreaView', 'Button'], // inclui distratores
+  // o StyleSheet.create do desafio (o aluno escolhe styles.X para cada componente)
+  styles: { tela: { flex: 1, padding: 16 }, cartao: { … }, foto: { width: 96, height: 96 }, nome: { fontSize: 20 } },
   explanation: '...',
   hints: ['...'],
 }
 ```
-`accept` pode ter mais de um componente válido (ex.: `['Button', 'Pressable']`).
+Componentes que aceitam filhos: `View`, `SafeAreaView`, `ScrollView`, `Pressable`; folhas:
+`Text`, `Image`, `Button`, `TextInput`, `Switch` (renderizados em `client/src/ui/uiTree.tsx`).
+A correção (`shared/jsx.ts → compareTree`) confere tipo, texto, estilo e ordem, e devolve
+uma pista sobre o **primeiro** ponto diferente. O JSX completo é mostrado ao acertar.
 
 **`boss_challenge`** — `{ type: 'boss_challenge', bossName: 'Guardião', rounds: 4, hearts: 3 }`.
 Rodadas sorteadas das perguntas do módulo. Errar custa um coração e troca a pergunta.
@@ -95,7 +108,8 @@ as cartas de `components` do módulo.
    ```ts
    { id: 'm3_build', title: 'Montador de Inventário', type: 'build_ui', emoji: '🛠️' },
    ```
-   Cada prédio comporta **4 estações + 1 chefe** (posições em `STATION_SLOTS` de `shared/map.ts`).
+   Cada prédio comporta **4 terminais + 1 chefe** (posições em `STATION_XS`/`BOSS_SLOT` de
+   `shared/map.ts`) e até **5 Mestres** (um por componente de `components`).
 2. Em `server/src/content/challenges.ts`, adicione em `STATION_CONTENT` a chave `m3_build`
    com o conteúdo do tipo correspondente.
 
@@ -141,11 +155,36 @@ Use a chave no campo `demo` de uma pergunta. Dica: não escreva o nome do compon
 da demo, para não entregar a resposta. Para a galeria `/demos.html`, associe a chave ao
 componente em `DEMO_COMPONENT` (`client/src/gallery.tsx`).
 
-## 5. Criar um molde de montagem (build_ui)
+## 5. Criar ou editar uma lição de Mestre
 
-Em `client/src/ui/blueprints.tsx` crie um componente que recebe `a` (as escolhas do aluno:
-`{ slotId: 'NomeDoComponente' }`) e use o helper `<Live comp={a.slot} role="text|image|input|toggle|action" ... />`,
-que já sabe desenhar cada componente certo ou "quebrado". Registre em `BLUEPRINTS`.
+As lições ficam em `client/src/lessons/` (`m1.tsx`, `m2.tsx`, `m3to6.tsx`). Cada componente de
+um módulo **precisa** de uma lição (o Mestre aparece no mapa automaticamente). Formato:
+
+```tsx
+{
+  component: 'Text',
+  tagline: 'Todo texto da tela mora aqui',
+  intro: <>Para mostrar texto você precisa do <C>{'<Text>'}</C>…</>,   // fala do Mestre
+  when: 'Títulos, parágrafos, rótulos…',
+  // {{chave}} vira um valor CLICÁVEL dentro do código
+  code: `<Text style={{ fontSize: {{fontSize}}, color: {{color}} }}>\n  Olá!\n</Text>`,
+  controls: [
+    { key: 'fontSize', options: [14, 20, 32] },
+    { key: 'color', options: ['#222222', '#e53935'] },
+  ],
+  // prévia com componentes reais; s = valores atuais, set = alterar estado (ex.: contar toques)
+  Preview: ({ s }) => <Pad><Text style={{ fontSize: s.fontSize, color: s.color }}>Olá!</Text></Pad>,
+  tasks: [{ text: 'Aumente a fonte para 32', done: (s) => s.fontSize === 32 }],
+  quiz: { question: '…', options: ['…'], answer: '…', why: '…' },
+}
+```
+
+Para projetar uma lição na aula: `http://IP:3000/demos.html?licao=Text`.
+
+### Código revelado nos quizzes
+Depois do acerto o aluno vê "🔍 Por trás da tela". Para quizzes com `demo`, o código vem de
+`DEMO_CODE` em `server/src/content/challenges.ts` (ou do campo `reveal` da pergunta); no
+`fix_bug` é a própria correção; no `build_ui` é o JSX gerado da tela-objetivo.
 
 ## 6. Regras e recompensas
 

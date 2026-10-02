@@ -26,24 +26,34 @@ Leva uns 10 minutos e evita surpresas.
    ✅ Som de porta, aviso "foi LIBERADO" nas duas janelas e a porta fica aberta (contorno verde).
 3. Tranque de novo para voltar ao estado da aula.
 
-## Teste 3 — desafio do módulo 1 (cartão de perfil)
+## Teste 3 — lição com um Mestre
 
-1. Leve a Ana para dentro da **Vila dos Componentes Fundamentais** (prédio 1, porta já aberta).
-2. Aproxime-se da estação 🛠️ **Oficina do Cartão de Perfil** e aperte **E**.
-3. Monte: Caixa → `View`, Foto → `Image`, Nome → `Text`, Estilos → `StyleSheet`.
-   Repare que a prévia mostra os componentes reais (e quebra se escolher errado!).
-4. Clique **Testar minha tela**. ✅ Som de acerto, +XP e moedas.
-5. No painel, a tabela "Quem completou cada desafio" mostra ✅ para a Ana em `m1_build`.
+1. Na primeira entrada aparece o tutorial do Reacto; siga a **seta amarela** até a
+   **Vila dos Componentes Fundamentais** (prédio 1, porta já aberta).
+2. Aproxime-se do **Mestre View** (❗ amarelo) e aperte **E**.
+3. Faça as 4 etapas: Conheça → Experimente (clique nos valores do código até cumprir as
+   missões) → Teste → Carta. ✅ +15 XP, carta `<View>` na coleção (tecla **I**) e ✓ sobre o Mestre.
+4. Repita com os outros 4 Mestres. Ao aprender os 5, os **terminais** do prédio destravam.
 
-## Teste 4 — cooperação
+## Teste 4 — "Monte a tela" (cartão de perfil)
 
-1. Beto entra na mesma estação e erra duas vezes (ex.: Caixa → `Text`).
+1. Vá até o terminal 🛠️ **MONTAR** (Oficina do Cartão de Perfil) e aperte **E**.
+2. Clique nos blocos para escrever o JSX: `<SafeAreaView>` (estilo `styles.tela`) →
+   `<View>` (`styles.cartao`) → `<Image>` (`styles.foto`) → os dois `<Text>` (`styles.nome`, `styles.bio`).
+   Clique numa linha do código para selecioná-la e trocar o estilo; ↑ ↓ ✕ movem/apagam.
+3. Compare "🎯 Objetivo" com "📱 Seu app" e clique **Executar e conferir**.
+   Errado: a folha vermelha diz o primeiro ponto diferente. Certo: confete, XP e o código completo.
+4. No painel, a tabela "Quem completou cada desafio" mostra ✅ para a Ana em `m1_build`.
+
+## Teste 5 — cooperação
+
+1. Beto aprende os 5 componentes, entra no mesmo terminal e erra duas vezes (ex.: executa uma tela vazia ou só com `<View>`).
    ✅ Aparece ❓ sobre o Beto, e o botão **🆘 Pedidos (1)** acende na janela da Ana.
 2. Ana abre **Pedidos** (tecla H) e clica **💡 Enviar dica** (custa 10 moedas).
    ✅ Beto recebe a dica com o nome da Ana e o selo "🤝 Modo cooperação".
 3. Beto acerta. ✅ Ana recebe +10 XP, +2 cooperação e a conquista **Mentor**.
 
-## Teste 5 — dois computadores (o teste que importa)
+## Teste 6 — dois computadores (o teste que importa)
 
 1. No PC do professor: `npm start` e anote o IP mostrado.
 2. Em outro PC da mesma rede: abra `http://IP:3000/health`. Deve aparecer `{"ok":true...}`.

@@ -32,7 +32,13 @@ export const bridge = new Bridge();
  *  'area'         moduleId | null      Phaser -> React (entrou/saiu de prédio)
  *  'blocked'      moduleId             Phaser -> React (bateu em porta trancada)
  *  'input'        boolean              React -> Phaser (liga/desliga teclado)
+ *  'moved'        —                    Phaser -> React (andou; usado no tutorial)
  */
 export type Interactable =
   | { kind: 'station'; id: string; moduleId: number }
+  | { kind: 'mentor'; component: string; moduleId: number }
   | { kind: 'sign'; moduleId: number };
+
+/** Chave estável para comparar interagíveis. */
+export const interactKey = (i: Interactable | null) =>
+  !i ? '' : i.kind === 'station' ? `s:${i.id}` : i.kind === 'mentor' ? `m:${i.component}` : `g:${i.moduleId}`;

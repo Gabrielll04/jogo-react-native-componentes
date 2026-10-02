@@ -5,15 +5,20 @@ import { MODULES } from './modules';
  * Usado pelo cliente (desenho + colisão) e pelo servidor (validar distância
  * do jogador até a estação de desafio).
  *
- * Layout (40 x 30 tiles de 32px):
+ * Layout (46 x 34 tiles de 32px):
  *   [M1]  [M2]  [M3]      <- prédios de cima (porta embaixo)
  *   ===== praça =====     <- spawn no centro
  *   [M4]  [M5]  [M6]      <- prédios de baixo (porta em cima)
+ *
+ * Dentro de cada prédio:
+ *   fileira de MESTRES (um por componente: dão a lição)
+ *   o CHEFE no centro
+ *   fileira de TERMINAIS de desafio
  */
 
 export const TILE = 32;
-export const MAP_W = 40;
-export const MAP_H = 30;
+export const MAP_W = 46;
+export const MAP_H = 34;
 
 export const Tile = {
   Grass: 0,
@@ -38,6 +43,12 @@ export interface StationPlacement {
   x: number;
   y: number;
 }
+export interface MentorPlacement {
+  component: string;
+  moduleId: number;
+  x: number;
+  y: number;
+}
 export interface SignPlacement {
   moduleId: number;
   x: number;
@@ -55,23 +66,21 @@ export interface WorldMap {
   tiles: Tile[][];
   doors: DoorInfo[];
   stations: StationPlacement[];
+  mentors: MentorPlacement[];
   signs: SignPlacement[];
   buildings: BuildingInfo[];
   spawn: { x: number; y: number };
 }
 
-const BW = 10; // largura do prédio
-const BH = 9; // altura do prédio
+const BW = 12; // largura do prédio
+const BH = 10; // altura do prédio
+const DOOR_X = 6; // porta (relativa ao prédio)
 
-// Posições relativas das estações dentro do prédio (para prédio com porta embaixo).
-// As 4 primeiras são desafios; a do meio é o chefe.
-const STATION_SLOTS = [
-  [2, 2],
-  [7, 2],
-  [2, 5],
-  [7, 5],
-];
-const BOSS_SLOT = [5, 3];
+// Posições relativas (prédio com porta embaixo; espelhado nos prédios de baixo)
+const MENTOR_Y = 2;
+const STATION_Y = 7;
+const STATION_XS = [2, 10, 4, 8]; // terminais de desafio
+const BOSS_SLOT = [6, 5];
 
 // gerador pseudo-aleatório determinístico: todos os clientes veem as mesmas árvores
 function seeded(seed: number) {
@@ -94,20 +103,21 @@ export function buildWorld(): WorldMap {
   }
 
   // praça central
-  for (let y = 12; y <= 17; y++) for (let x = 2; x <= MAP_W - 3; x++) tiles[y][x] = Tile.Path;
+  for (let y = 13; y <= 20; y++) for (let x = 2; x <= MAP_W - 3; x++) tiles[y][x] = Tile.Path;
   // fonte no centro da praça
-  for (let y = 13; y <= 14; y++) for (let x = 19; x <= 20; x++) tiles[y][x] = Tile.Water;
+  for (let y = 15; y <= 16; y++) for (let x = 22; x <= 23; x++) tiles[y][x] = Tile.Water;
 
   const doors: DoorInfo[] = [];
   const stations: StationPlacement[] = [];
+  const mentors: MentorPlacement[] = [];
   const signs: SignPlacement[] = [];
   const buildings: BuildingInfo[] = [];
 
   MODULES.slice(0, 6).forEach((mod, i) => {
     const col = i % 3;
     const top = i < 3;
-    const bx = 2 + col * 13;
-    const by = top ? 2 : 19;
+    const bx = 2 + col * 15;
+    const by = top ? 2 : 22;
     buildings.push({ moduleId: mod.id, x: bx, y: by, w: BW, h: BH });
 
     for (let y = by; y < by + BH; y++) {
@@ -117,22 +127,27 @@ export function buildWorld(): WorldMap {
       }
     }
     // porta voltada para a praça
-    const dx = bx + 5;
+    const dx = bx + DOOR_X;
     const dy = top ? by + BH - 1 : by;
     tiles[dy][dx] = Tile.Door;
     doors.push({ moduleId: mod.id, x: dx, y: dy });
     // caminho da porta até a praça
-    if (top) for (let y = dy + 1; y < 12; y++) tiles[y][dx] = Tile.Path;
-    else for (let y = 18; y < dy; y++) tiles[y][dx] = Tile.Path;
+    if (top) for (let y = dy + 1; y < 13; y++) tiles[y][dx] = Tile.Path;
+    else for (let y = 21; y < dy; y++) tiles[y][dx] = Tile.Path;
     // placa ao lado da porta (do lado de fora)
     signs.push({ moduleId: mod.id, x: dx - 2, y: top ? dy + 1 : dy - 1 });
 
     // estações: espelha verticalmente para prédios de baixo
     const mirror = (ry: number) => (top ? ry : BH - 1 - ry);
+    // mestres: um por componente, centralizados na fileira de cima
+    const n = mod.components.length;
+    mod.components.slice(0, 5).forEach((component, k) => {
+      mentors.push({ component, moduleId: mod.id, x: bx + DOOR_X - (n - 1) + k * 2, y: by + mirror(MENTOR_Y) });
+    });
     let slot = 0;
     for (const st of mod.stations) {
-      const pos = st.type === 'boss_challenge' ? BOSS_SLOT : STATION_SLOTS[slot++];
-      if (!pos) continue;
+      const pos = st.type === 'boss_challenge' ? BOSS_SLOT : [STATION_XS[slot++], STATION_Y];
+      if (pos[0] === undefined) continue;
       stations.push({ stationId: st.id, moduleId: mod.id, x: bx + pos[0], y: by + mirror(pos[1]) });
     }
   });
@@ -152,7 +167,7 @@ export function buildWorld(): WorldMap {
     }
   }
 
-  return { tiles, doors, stations, signs, buildings, spawn: { x: 20 * TILE, y: 16 * TILE + TILE / 2 } };
+  return { tiles, doors, stations, mentors, signs, buildings, spawn: { x: 23 * TILE, y: 18 * TILE + TILE / 2 } };
 }
 
 /** Tiles que bloqueiam movimento (a porta é tratada à parte: depende do módulo). */

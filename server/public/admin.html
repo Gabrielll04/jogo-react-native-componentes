@@ -127,12 +127,13 @@
       </div>`).join('');
 
     const players = [...data.players].sort((a, b) => b.xp - a.xp);
-    $('players').innerHTML = `<tr><th></th><th>Nome</th><th>Equipe</th><th>Nível</th><th>XP</th><th>🪙</th><th>🤝</th><th>Desafios</th><th>Módulos</th><th>Acertos</th></tr>` +
+    $('players').innerHTML = `<tr><th></th><th>Nome</th><th>Equipe</th><th>Nível</th><th>XP</th><th>🪙</th><th>🤝</th><th>📚 Lições</th><th>Desafios</th><th>Módulos</th><th>Acertos</th></tr>` +
       players.map((p) => `<tr>
         <td><span class="dot" style="background:${online.has(p.id) ? 'var(--ok)' : '#555'}"></span></td>
         <td><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</td>
         <td><span class="team" style="background:${TEAM_COLORS[p.team]}">${p.team}</span></td>
         <td>${Math.floor(p.xp / 100) + 1}</td><td>${p.xp}</td><td>${p.coins}</td><td>${p.coopPoints}</td>
+        <td title="${esc((p.learned || []).join(', '))}">${(p.learned || []).length}/21</td>
         <td>${Object.keys(p.completed).length}</td>
         <td>${p.modulesCompleted.map((id) => '🏆' + id).join(' ') || '-'}</td>
         <td>${p.totalCorrect}/${p.totalAttempts}</td>

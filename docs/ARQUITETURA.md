@@ -26,11 +26,20 @@
 - **Conteúdo declarativo.** Módulos, estações, perguntas, demos e moldes são dados; o motor
   (`challengeEngine.ts`) transforma em rodadas.
 
+## Ciclo de aprendizagem
+
+1. **Lição com um Mestre** (cliente, `client/src/lessons`): Conheça → Experimente → Teste → Carta.
+   Ao fim o cliente envia `lesson_complete {component}`; o servidor confere módulo liberado e
+   distância até o Mestre e registra em `progress.learned` (+ carta, XP, moedas).
+2. **Terminais** só abrem quando todos os componentes do módulo estão em `learned`.
+3. **Chefe** só abre quando os outros terminais do módulo foram concluídos.
+4. A missão atual (HUD, seta e minimapa) é calculada em `client/src/game/quest.ts` a partir do progresso.
+
 ## Fluxo de um desafio
 
-1. Jogador perto da estação aperta **E** → `start_challenge {stationId}`.
-2. Servidor valida (módulo liberado, pré-requisitos, distância ≤ 2,5 tiles, chefe exige outras
-   estações), sorteia variante, embaralha e responde `challenge_data` (sem gabarito).
+1. Jogador perto do terminal aperta **E** → `start_challenge {stationId}`.
+2. Servidor valida (módulo liberado, pré-requisitos, lições do módulo aprendidas, distância ≤ 2,5
+   tiles, chefe exige os outros terminais), sorteia variante, embaralha e responde `challenge_data` (sem gabarito).
 3. Cliente renderiza o tipo de desafio com componentes RN (demo viva/prévia).
 4. `submit_answer` → servidor corrige → `answer_result` (+ `play_sound`, `update_inventory`,
    `team_progress_update`, `challenge_completed` para o feed dos colegas).
@@ -65,6 +74,7 @@
 | `play_sound` | S→C | nome do som |
 | `notice` | S→C | `{ text, kind }` |
 | `emote` | C↔S | `{ emote }` / `{ id, emote }` |
+| `lesson_complete` | C→S | `{ component }` |
 | `player_disconnect` | S→todos | `{ id }` |
 
 ## Endpoints REST
@@ -94,7 +104,8 @@ navegador (`sessionStorage`/`localStorage`), então recarregar a página mantém
 
 ## Anti-trapaça e anti-decoreba (MVP)
 
-- Gabarito só no servidor; distância até a estação validada no servidor.
+- Gabarito só no servidor; distância até o terminal/Mestre validada no servidor.
+- Árvores JSX enviadas no "Monte a tela" têm tamanho limitado (40 nós, 8 níveis).
 - Variantes sorteadas, alternativas embaralhadas a cada envio, chefe troca de pergunta ao errar.
 - Rejogar uma estação concluída dá só 5 XP (treino), evitando "farmar".
 - Ajudado ganha 80% do XP; dicas custam moedas; chefe é individual.

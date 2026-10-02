@@ -3,9 +3,10 @@
  * (payload sem gabarito para o cliente + função de correção no servidor).
  */
 import { randomUUID } from 'node:crypto';
+import { compareTree, countNodes, treeToCode } from '../../shared/jsx';
 import { COMPONENTS, findStation, MODULES } from '../../shared/modules';
 import type { BossState, ChallengeAnswer, ChallengePayload, ChallengeType, ChallengeView } from '../../shared/types';
-import { STATION_CONTENT, type BugDef, type BuildDef, type MatchDef, type QuizDef } from './content/challenges';
+import { DEMO_CODE, STATION_CONTENT, type BugDef, type BuildDef, type MatchDef, type QuizDef } from './content/challenges';
 
 export interface Round {
   payload: ChallengePayload;
@@ -14,6 +15,8 @@ export interface Round {
   wrongFeedback: (answer: ChallengeAnswer) => string;
   explanation: string;
   hints: string[];
+  /** código mostrado depois do acerto */
+  reveal?: string;
 }
 
 export interface Instance {
@@ -64,6 +67,7 @@ function quizRound(def: QuizDef): Round {
     wrongFeedback: (a) => `Não é esse! ${typeof a === 'string' ? describe(a) : ''}`,
     explanation: def.explanation,
     hints: def.hints,
+    reveal: def.reveal ?? (def.demo ? DEMO_CODE[def.demo] : undefined),
   };
 }
 
@@ -76,6 +80,7 @@ function bugRound(def: BugDef): Round {
     wrongFeedback: () => 'Essa correção ainda não resolve o problema. Leia a mensagem de erro de novo!',
     explanation: def.explanation,
     hints: def.hints,
+    reveal: def.fix,
   };
 }
 
@@ -88,7 +93,7 @@ function matchRound(def: MatchDef): Round {
   const answerKey: Record<string, string> = {};
   for (const r of right) answerKey[r.owner] = r.id;
   const countCorrect = (a: ChallengeAnswer) =>
-    typeof a === 'object' ? left.filter((l) => a[l.id] === answerKey[l.id]).length : 0;
+    typeof a === 'object' ? left.filter((l) => (a as Record<string, string>)[l.id] === answerKey[l.id]).length : 0;
   return {
     payload: { kind: 'match', prompt: def.prompt, left, right: right.map(({ id, label }) => ({ id, label })) },
     check: (a) => countCorrect(a) === left.length,
@@ -99,20 +104,20 @@ function matchRound(def: MatchDef): Round {
 }
 
 function buildRound(def: BuildDef): Round {
-  const countCorrect = (a: ChallengeAnswer) =>
-    typeof a === 'object' ? def.slots.filter((s) => s.accept.includes(a[s.id])).length : 0;
+  const styleSheet =
+    'const styles = StyleSheet.create({\n' +
+    Object.keys(def.styles)
+      .map((k) => `  ${k}: { ... },`)
+      .join('\n') +
+    '\n});';
   return {
-    payload: {
-      kind: 'build',
-      prompt: def.prompt,
-      blueprint: def.blueprint,
-      slots: def.slots.map(({ id, label }) => ({ id, label })),
-      palette: shuffle(def.palette),
-    },
-    check: (a) => countCorrect(a) === def.slots.length,
-    wrongFeedback: (a) => `${countCorrect(a)} de ${def.slots.length} partes corretas. Observe a prévia!`,
+    payload: { kind: 'build', prompt: def.prompt, target: def.target, blocks: shuffle(def.blocks), styles: def.styles },
+    // compara a árvore enviada com a tela-objetivo (limite de tamanho por segurança)
+    check: (a) => countNodes(a) <= 40 && compareTree(a, def.target) === null,
+    wrongFeedback: (a) => (countNodes(a) > 40 ? 'Tela grande demais!' : compareTree(a, def.target) ?? ''),
     explanation: def.explanation,
     hints: def.hints,
+    reveal: treeToCode(def.target) + '\n\n' + styleSheet,
   };
 }
 
@@ -197,7 +202,7 @@ export function reshuffleRound(inst: Instance) {
   const p = inst.round.payload;
   if (p.kind === 'quiz') p.options = shuffle(p.options);
   if (p.kind === 'match') p.right = shuffle(p.right);
-  if (p.kind === 'build') p.palette = shuffle(p.palette);
+  if (p.kind === 'build') p.blocks = shuffle(p.blocks);
 }
 
 export function toView(inst: Instance): ChallengeView {
