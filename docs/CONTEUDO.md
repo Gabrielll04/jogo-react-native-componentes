@@ -186,14 +186,48 @@ Depois do acerto o aluno vê "🔍 Por trás da tela". Para quizzes com `demo`, 
 `DEMO_CODE` em `server/src/content/challenges.ts` (ou do campo `reveal` da pergunta); no
 `fix_bug` é a própria correção; no `build_ui` é o JSX gerado da tela-objetivo.
 
-## 6. Regras e recompensas
+## 6. Tarefas de duelo ⚔️
+
+Ficam em `shared/duels.ts` (lista `DUEL_TASKS`); o servidor sorteia uma do modo escolhido.
+
+**Blocos** — uma tela-objetivo SEM estilos (só estrutura) e os blocos disponíveis:
+```ts
+{
+  id: 'b_ola', mode: 'blocks', title: 'Olá, mundo!',
+  prompt: 'Recrie a tela: uma caixa com um texto dentro.',
+  target: { type: 'View', children: [{ type: 'Text', text: 'Olá, mundo!' }] },
+  blocks: [B('v', 'View'), B('t', 'Text', 'Olá, mundo!'), B('t2', 'Text', 'Tchau!')],
+}
+```
+
+**Código** — código inicial, checklist e uma solução (mostrada no fim):
+```ts
+{
+  id: 'c_hello', mode: 'code', title: 'Hello World',
+  prompt: 'Complete o componente App para escrever Hello World na tela.',
+  starter: "import { Text } from 'react-native';\n\nexport default function App() {\n  return (\n    \n  );\n}",
+  checks: [
+    declaresApp,                                              // "Criar um componente chamado App"
+    has('Usar um <Text>', (n) => n.type === 'Text'),          // procura na árvore JSX
+    has('O texto é "Hello World"', (n) => n.type === 'Text' && norm(n.text) === 'hello world'),
+  ],
+  solution: 'export default function App() {\n  return <Text>Hello World</Text>;\n}',
+}
+```
+O código do aluno passa por um mini-interpretador de JSX (`parseJsx` em `shared/jsx.ts`) que
+entende tags, props (`title="..."`, `source={...}`) e textos; ele gera a prévia no celular e
+a árvore usada pelos `checks`. Mantenha as tarefas **simples** (um ou dois componentes).
+
+Aposta, tempos e XP: constantes no topo de `shared/duels.ts` (`DUEL_STAKE`, `DUEL_INVITE_MS`…).
+
+## 7. Regras e recompensas
 
 - `shared/events.ts` → `RULES`: moedas iniciais, custo de dica, erros até ficar "travado", XP por nível…
 - `server/src/game.ts` → `XP_BY_TYPE` e `completeStation()`: XP por tipo, desconto por erro/dica,
   bônus de cooperação.
 - `server/src/state.ts` → `ACHIEVEMENTS`: conquistas.
 
-## 7. Sons
+## 8. Sons
 
 `client/src/audio/sound.ts` tem a função central `playSound(nome)`. Os arquivos ficam em
 `client/public/sounds/`:
@@ -208,6 +242,7 @@ Depois do acerto o aluno vê "🔍 Por trás da tela". Para quizzes com `demo`, 
 | `boss.wav` | chefe derrotado |
 | `module.wav` | módulo concluído |
 | `achievement.wav` | conquista |
+| `duel.wav` | convite de duelo e início do duelo |
 | `click.wav` | clique em botões |
 
 Para usar sons próprios, substitua o arquivo mantendo o nome (ou troque a extensão para

@@ -19,6 +19,10 @@ export const EV = {
   SEND_HINT: 'send_hint', // {targetId}
   EMOTE: 'emote', // {emote}
   LESSON_COMPLETE: 'lesson_complete', // {component}
+  DUEL_INVITE: 'duel_invite', // {targetId, mode}
+  DUEL_RESPOND: 'duel_respond', // {duelId, accept}
+  DUEL_SUBMIT: 'duel_submit', // {duelId, answer}
+  DUEL_FORFEIT: 'duel_forfeit', // {duelId}
 
   // servidor -> cliente
   WELCOME: 'welcome', // {playerId, progress, modules, players}
@@ -36,6 +40,13 @@ export const EV = {
   TEAM_PROGRESS_UPDATE: 'team_progress_update', // Record<TeamId, number>
   PLAY_SOUND: 'play_sound', // SoundName
   NOTICE: 'notice', // {text, kind}
+  FEED: 'feed', // {text} — acontecimentos dos colegas
+  DUEL_INVITED: 'duel_invited', // DuelInvite (notificação no canto)
+  DUEL_INVITE_CLOSED: 'duel_invite_closed', // {duelId}
+  DUEL_START: 'duel_start', // DuelStart
+  DUEL_FEEDBACK: 'duel_feedback', // {msg}
+  DUEL_OPPONENT: 'duel_opponent', // {attempts}
+  DUEL_END: 'duel_end', // DuelEnd
 } as const;
 
 export const TEAMS = [

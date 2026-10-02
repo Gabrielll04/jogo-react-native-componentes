@@ -10,6 +10,9 @@ import { actions, moduleName } from '../net/socket';
 import { getState, toast, useStore } from '../state/store';
 import { Btn } from '../ui/Btn';
 import { ChallengeOverlay } from '../ui/ChallengeOverlay';
+import { DuelInvites } from '../ui/DuelInvites';
+import { DuelOverlay } from '../ui/DuelOverlay';
+import { DuelPanel } from '../ui/DuelPanel';
 import { HelpPanel } from '../ui/HelpPanel';
 import { InventoryPanel } from '../ui/InventoryPanel';
 import { LessonOverlay } from '../ui/LessonOverlay';
@@ -23,6 +26,7 @@ export function WorldScreen() {
   const progress = useStore((s) => s.progress);
   const modules = useStore((s) => s.modules);
   const challenge = useStore((s) => s.challenge);
+  const duel = useStore((s) => s.duel);
   const muted = useStore((s) => s.muted);
   const helpCount = useStore((s) => s.helpRequests.length);
   const feed = useStore((s) => s.feed);
@@ -30,7 +34,8 @@ export function WorldScreen() {
   const [area, setArea] = useState<number | null>(null);
   const [sign, setSign] = useState<number | null>(null);
   const [lesson, setLesson] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'inv' | 'help' | null>(null);
+  const [panel, setPanel] = useState<'inv' | 'help' | 'duel' | null>(null);
+  const [duelTarget, setDuelTarget] = useState<string | null>(null);
   const [tutorial, setTutorial] = useState<number>(() => {
     try {
       return localStorage.getItem(TUTORIAL_KEY) ? -1 : 0;
@@ -39,7 +44,15 @@ export function WorldScreen() {
     }
   });
 
-  const overlayOpen = Boolean(challenge || sign !== null || panel || lesson);
+  const overlayOpen = Boolean(challenge || sign !== null || panel || lesson || duel);
+
+  // ao começar um duelo, fecha lição/painéis abertos (o duelo vira a tela principal)
+  useEffect(() => {
+    if (!duel) return;
+    setLesson(null);
+    setSign(null);
+    setPanel(null);
+  }, [duel?.duelId]);
 
   // desliga o teclado do Phaser enquanto há janelas abertas (para digitar nos TextInput)
   useEffect(() => {
@@ -58,6 +71,10 @@ export function WorldScreen() {
   useEffect(() => {
     const interact = (it: Interactable) => {
       if (it.kind === 'sign') setSign(it.moduleId);
+      else if (it.kind === 'player') {
+        setDuelTarget(it.id);
+        setPanel('duel');
+      }
       else if (it.kind === 'mentor') {
         setLesson(it.component);
         setTutorial((t) => (t >= 0 ? 3 : t));
@@ -81,9 +98,13 @@ export function WorldScreen() {
         setPanel(null);
         setSign(null);
       }
-      if (challenge || lesson) return;
+      if (challenge || lesson || getState().duel) return;
       if (e.key.toLowerCase() === 'i') setPanel((p) => (p === 'inv' ? null : 'inv'));
       if (e.key.toLowerCase() === 'h') setPanel((p) => (p === 'help' ? null : 'help'));
+      if (e.key.toLowerCase() === 'x') {
+        setDuelTarget(null);
+        setPanel((p) => (p === 'duel' ? null : 'duel'));
+      }
       const n = Number(e.key);
       if (n >= 1 && n <= EMOTES.length) actions.emote(EMOTES[n - 1]);
     };
@@ -149,6 +170,15 @@ export function WorldScreen() {
 
       {/* ---------- botões + moldura do minimapa */}
       <View style={styles.buttons} pointerEvents="box-none">
+        <Btn
+          small
+          variant="gold"
+          title="⚔️ Duelo (X)"
+          onPress={() => {
+            setDuelTarget(null);
+            setPanel(panel === 'duel' ? null : 'duel');
+          }}
+        />
         <Btn small variant="purple" title="🎒 Cartas (I)" onPress={() => setPanel(panel === 'inv' ? null : 'inv')} />
         <Btn small variant={helpCount ? 'gold' : 'neutral'} title={`🆘 ${helpCount}`} onPress={() => setPanel(panel === 'help' ? null : 'help')} />
         <Btn small title={muted ? '🔇' : '🔊'} onPress={toggleMute} />
@@ -175,7 +205,7 @@ export function WorldScreen() {
       {/* ---------- controles + emotes */}
       <View style={styles.controls} pointerEvents="box-none">
         <Text style={styles.controlsText}>
-          <Key k="WASD" /> andar  <Key k="E" /> interagir  <Key k="I" /> cartas  <Key k="1-6" /> emotes
+          <Key k="WASD" /> andar  <Key k="E" /> interagir  <Key k="I" /> cartas  <Key k="X" /> duelo  <Key k="1-6" /> emotes
         </Text>
         <View style={{ flexDirection: 'row', gap: 4, marginTop: 6 }}>
           {EMOTES.map((e) => (
@@ -189,6 +219,7 @@ export function WorldScreen() {
       {sign !== null ? <SignDialog moduleId={sign} onClose={() => setSign(null)} /> : null}
       {panel === 'inv' ? <InventoryPanel onClose={() => setPanel(null)} /> : null}
       {panel === 'help' ? <HelpPanel onClose={() => setPanel(null)} /> : null}
+      {panel === 'duel' ? <DuelPanel preselect={duelTarget} onClose={() => setPanel(null)} /> : null}
       {lesson ? (
         <LessonOverlay
           component={lesson}
@@ -199,6 +230,9 @@ export function WorldScreen() {
         />
       ) : null}
       {challenge ? <ChallengeOverlay /> : null}
+      {duel ? <DuelOverlay /> : null}
+      {/* convites de duelo: no canto, por cima de tudo, sem travar o jogo */}
+      <DuelInvites />
     </View>
   );
 }
@@ -225,6 +259,9 @@ function Prompt({ it }: { it: Interactable }) {
     const done = progress?.completed[it.id];
     title = `${st.station.emoji} ${st.station.title}${done ? ' ✅' : ''}`;
     action = st.station.type === 'boss_challenge' ? 'Enfrentar o Guardião!' : done ? 'Treinar de novo' : 'Iniciar desafio';
+  } else if (it.kind === 'player') {
+    title = `🧑 ${it.name}`;
+    action = 'Desafiar para um duelo ⚔️';
   } else {
     title = `ℹ️ Placa: ${MODULES.find((m) => m.id === it.moduleId)?.name}`;
     action = 'Ler a placa';

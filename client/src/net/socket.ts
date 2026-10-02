@@ -6,10 +6,14 @@
 import { io, type Socket } from 'socket.io-client';
 import { EV, RULES } from '@shared/events';
 import { MODULES } from '@shared/modules';
+import type { DuelMode } from '@shared/duels';
 import type {
   AnswerResult,
   ChallengeAnswer,
   ChallengeView,
+  DuelEnd,
+  DuelInvite,
+  DuelStart,
   HelpRequest,
   ModuleState,
   PlayerProgress,
@@ -138,6 +142,31 @@ export function connect(p: { name: string; color: string; team: TeamId }) {
   });
 
   socket.on(EV.PLAYER_DISCONNECT, (d: { id: string }) => bridge.emit('left', d.id));
+
+  socket.on(EV.FEED, (f: { text: string }) => setState((s) => ({ feed: [...s.feed.slice(-5), f.text] })));
+
+  // ---- duelos
+  socket.on(EV.DUEL_INVITED, (inv: DuelInvite) => {
+    setState((s) => ({ duelInvites: [...s.duelInvites.filter((x) => x.duelId !== inv.duelId), { ...inv, expiresAt: Date.now() + inv.expiresIn }] }));
+  });
+  socket.on(EV.DUEL_INVITE_CLOSED, (d: { duelId: string }) => {
+    setState((s) => ({ duelInvites: s.duelInvites.filter((x) => x.duelId !== d.duelId) }));
+  });
+  socket.on(EV.DUEL_START, (d: DuelStart) => {
+    // o duelo substitui o desafio de terminal que estiver aberto
+    setState({
+      duel: { ...d, startAt: Date.now() + d.startsIn },
+      duelEnd: null,
+      duelFeedback: null,
+      duelOppAttempts: 0,
+      duelInvites: [],
+      challenge: null,
+      lastResult: null,
+    });
+  });
+  socket.on(EV.DUEL_FEEDBACK, (f: { msg: string }) => setState({ duelFeedback: { msg: f.msg, at: Date.now() } }));
+  socket.on(EV.DUEL_OPPONENT, (o: { attempts: number }) => setState({ duelOppAttempts: o.attempts }));
+  socket.on(EV.DUEL_END, (e: DuelEnd) => setState({ duelEnd: e }));
 }
 
 // ---------------- ações do jogador ----------------
@@ -150,8 +179,8 @@ export const actions = {
     setState({ screen: 'world' });
   },
   leaveWorld() {
-    emit(EV.LEAVE_WORLD);
-    setState({ screen: 'lobby', challenge: null, lastResult: null });
+    emit(EV.LEAVE_WORLD); // durante um duelo, sair conta como desistência
+    setState({ screen: 'lobby', challenge: null, lastResult: null, duel: null, duelEnd: null, duelInvites: [] });
   },
   move: (() => {
     // throttle: no máximo uma mensagem a cada RULES.MOVE_SEND_MS,
@@ -203,6 +232,24 @@ export const actions = {
   },
   emote(emote: string) {
     emit(EV.EMOTE, { emote });
+  },
+  duelInvite(targetId: string, mode: DuelMode) {
+    emit(EV.DUEL_INVITE, { targetId, mode });
+  },
+  duelRespond(duelId: string, accept: boolean) {
+    emit(EV.DUEL_RESPOND, { duelId, accept });
+    setState((s) => ({ duelInvites: s.duelInvites.filter((x) => x.duelId !== duelId) }));
+  },
+  duelSubmit(answer: unknown) {
+    const d = getState().duel;
+    if (d) emit(EV.DUEL_SUBMIT, { duelId: d.duelId, answer });
+  },
+  duelForfeit() {
+    const d = getState().duel;
+    if (d) emit(EV.DUEL_FORFEIT, { duelId: d.duelId });
+  },
+  closeDuel() {
+    setState({ duel: null, duelEnd: null, duelFeedback: null });
   },
 };
 

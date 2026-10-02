@@ -43,13 +43,22 @@ export function RenderNode({ node, styles, path = 'r' }: { node: UINode; styles:
       return <TextInput placeholder={node.text} style={st ?? { borderWidth: 1, borderColor: '#999', padding: 6 }} />;
     case 'Switch':
       return <LiveSwitch />;
+    case '__loose_text__':
+      // texto solto fora de <Text>: o React Native mostra a "tela vermelha"
+      return (
+        <View style={{ backgroundColor: '#d32f2f', padding: 8, borderRadius: 6 }}>
+          <Text style={{ color: '#fff', fontWeight: '800', fontSize: 11 }}>Error</Text>
+          <Text style={{ color: '#fff', fontSize: 10 }}>Text strings must be rendered within a {'<Text>'} component: "{node.text}"</Text>
+        </View>
+      );
     default:
       return <Text style={{ color: 'red' }}>?{node.type}</Text>;
   }
 }
 
 /** Tela inteira (raiz ocupa o celular todo). */
-export function RenderScreen({ root, styles }: { root: UINode | null; styles: Styles }) {
+/** pad: margem abaixo do "notch" (telas de duelo, que não usam estilos) */
+export function RenderScreen({ root, styles, pad }: { root: UINode | null; styles: Styles; pad?: boolean }) {
   if (!root) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
@@ -58,8 +67,8 @@ export function RenderScreen({ root, styles }: { root: UINode | null; styles: St
     );
   }
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <RenderNode node={root} styles={styles} />
+    <View style={[{ flex: 1, backgroundColor: '#fff' }, pad && { paddingTop: 40, paddingHorizontal: 14 }]}>
+      <RenderNode node={pad && root.type === 'View' && !root.style ? { ...root, style: '__pad' } : root} styles={pad ? { ...styles, __pad: { gap: 10 } } : styles} />
     </View>
   );
 }

@@ -18,11 +18,12 @@ import type {
   TeamId,
 } from '../../shared/types';
 import { createInstance, nextBossRound, nextHint, reshuffleRound, toView, type Instance } from './challengeEngine';
+import { clearAllDuels, playerGone, registerDuelHandlers } from './duels';
 import { ACHIEVEMENTS, grantAchievement, state } from './state';
 
 const world = buildWorld();
 
-interface OnlinePlayer {
+export interface OnlinePlayer {
   socketId: string;
   playerId: string;
   x: number;
@@ -32,6 +33,8 @@ interface OnlinePlayer {
   stuck: boolean;
   instance: Instance | null;
   lastEmoteAt: number;
+  /** duelo em andamento */
+  duelId: string | null;
 }
 
 /** socketId -> jogador online */
@@ -43,7 +46,7 @@ const XP_BY_TYPE = { quiz_component: 20, fix_bug: 25, match_use: 30, build_ui: 4
 
 // ------------------------------------------------------------------ helpers
 
-function findOnlineByPlayer(playerId: string) {
+export function findOnlineByPlayer(playerId: string) {
   for (const o of online.values()) if (o.playerId === playerId) return o;
   return null;
 }
@@ -64,6 +67,7 @@ function toPublic(o: OnlinePlayer): PublicPlayer {
     level: levelFromXp(p.xp, RULES.XP_PER_LEVEL),
     xp: p.xp,
     emote: null,
+    dueling: Boolean(o.duelId),
   };
 }
 
@@ -71,16 +75,16 @@ export function onlinePlayers() {
   return [...online.values()].map(toPublic);
 }
 
-function broadcastLobby() {
+export function broadcastLobby() {
   io.emit(EV.LOBBY_UPDATE, onlinePlayers());
 }
 
-function sound(socket: Socket | string, name: SoundName) {
+export function sound(socket: Socket | string, name: SoundName) {
   if (typeof socket === 'string') io.to(socket).emit(EV.PLAY_SOUND, name);
   else socket.emit(EV.PLAY_SOUND, name);
 }
 
-function notice(target: Socket | string | null, text: string, kind: 'info' | 'success' | 'warn' = 'info') {
+export function notice(target: Socket | string | null, text: string, kind: 'info' | 'success' | 'warn' = 'info') {
   if (target === null) io.emit(EV.NOTICE, { text, kind });
   else if (typeof target === 'string') io.to(target).emit(EV.NOTICE, { text, kind });
   else target.emit(EV.NOTICE, { text, kind });
@@ -114,7 +118,7 @@ function broadcastHelpRequests() {
   }
 }
 
-function award(socketId: string, p: PlayerProgress, achievementId: string) {
+export function award(socketId: string, p: PlayerProgress, achievementId: string) {
   if (grantAchievement(p, achievementId)) {
     const a = ACHIEVEMENTS[achievementId];
     notice(socketId, `${a.emoji} Conquista desbloqueada: ${a.title}`, 'success');
@@ -123,7 +127,7 @@ function award(socketId: string, p: PlayerProgress, achievementId: string) {
   }
 }
 
-function afterProgressChange(o: OnlinePlayer) {
+export function afterProgressChange(o: OnlinePlayer) {
   const p = state.progress[o.playerId];
   sendProgress(o.socketId, p);
   io.emit(EV.TEAM_PROGRESS_UPDATE, state.teamTotals());
@@ -153,6 +157,7 @@ export function announce(text: string) {
 }
 
 export function resetAll() {
+  clearAllDuels();
   state.reset();
   for (const o of online.values()) {
     o.instance = null;
@@ -166,6 +171,8 @@ export function resetAll() {
 }
 
 // ------------------------------------------------------------------ socket
+
+export const getIo = () => io;
 
 export function setupGame(server: Server) {
   io = server;
@@ -194,6 +201,7 @@ export function setupGame(server: Server) {
         stuck: false,
         instance: null,
         lastEmoteAt: 0,
+        duelId: null,
       };
       online.set(socket.id, me);
       socket.emit(EV.WELCOME, {
@@ -221,6 +229,7 @@ export function setupGame(server: Server) {
 
     socket.on(EV.LEAVE_WORLD, () => {
       if (!me) return;
+      playerGone(me); // sair do mundo durante um duelo = desistir
       me.inWorld = false;
       me.instance = null;
       me.stuck = false;
@@ -469,6 +478,9 @@ export function setupGame(server: Server) {
       afterProgressChange(me);
     });
 
+    // ---- duelos ⚔️ (ver duels.ts)
+    registerDuelHandlers(socket, () => me);
+
     // ---- emotes
     socket.on(EV.EMOTE, (data: { emote: string }) => {
       if (!me) return;
@@ -481,6 +493,7 @@ export function setupGame(server: Server) {
     socket.on('disconnect', () => {
       if (!me) return;
       const p = state.progress[me.playerId];
+      playerGone(me);
       online.delete(socket.id);
       if (p) {
         p.lastSeen = Date.now();

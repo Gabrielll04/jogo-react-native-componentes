@@ -37,8 +37,17 @@ export const bridge = new Bridge();
 export type Interactable =
   | { kind: 'station'; id: string; moduleId: number }
   | { kind: 'mentor'; component: string; moduleId: number }
-  | { kind: 'sign'; moduleId: number };
+  | { kind: 'sign'; moduleId: number }
+  | { kind: 'player'; id: string; name: string };
 
 /** Chave estável para comparar interagíveis. */
 export const interactKey = (i: Interactable | null) =>
-  !i ? '' : i.kind === 'station' ? `s:${i.id}` : i.kind === 'mentor' ? `m:${i.component}` : `g:${i.moduleId}`;
+  !i
+    ? ''
+    : i.kind === 'station'
+      ? `s:${i.id}`
+      : i.kind === 'mentor'
+        ? `m:${i.component}`
+        : i.kind === 'player'
+          ? `p:${i.id}`
+          : `g:${i.moduleId}`;

@@ -35,6 +35,13 @@
 3. **Chefe** só abre quando os outros terminais do módulo foram concluídos.
 4. A missão atual (HUD, seta e minimapa) é calculada em `client/src/game/quest.ts` a partir do progresso.
 
+## Duelos
+
+Lógica em `server/src/duels.ts`, tarefas em `shared/duels.ts`. O servidor sorteia a tarefa,
+controla a contagem (tempos relativos, para não depender do relógio de cada PC), confere as
+respostas e transfere as moedas: `min(DUEL_STAKE, moedas do perdedor)`. Desistir, sair do mundo
+ou desconectar durante o duelo = derrota; convite expira em 30 s; duelo expira em 4 min (empate).
+
 ## Fluxo de um desafio
 
 1. Jogador perto do terminal aperta **E** → `start_challenge {stationId}`.
@@ -75,6 +82,16 @@
 | `notice` | S→C | `{ text, kind }` |
 | `emote` | C↔S | `{ emote }` / `{ id, emote }` |
 | `lesson_complete` | C→S | `{ component }` |
+| `duel_invite` | C→S | `{ targetId, mode }` |
+| `duel_invited` | S→C | convite (notificação no canto) |
+| `duel_respond` | C→S | `{ duelId, accept }` |
+| `duel_invite_closed` | S→C | `{ duelId }` (recusado/expirado/cancelado) |
+| `duel_start` | S→C | `{ duelId, taskId, mode, opponent, stake, startsIn }` |
+| `duel_submit` | C→S | `{ duelId, answer }` (árvore ou código) |
+| `duel_feedback` / `duel_opponent` | S→C | erro do próprio aluno / tentativas do adversário |
+| `duel_forfeit` | C→S | `{ duelId }` |
+| `duel_end` | S→C | resultado, moedas (+/-), XP, solução |
+| `feed` | S→todos | `{ text }` acontecimentos (duelos) |
 | `player_disconnect` | S→todos | `{ id }` |
 
 ## Endpoints REST

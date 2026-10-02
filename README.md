@@ -25,6 +25,17 @@ O aluno não só responde perguntas: ele **aprende, experimenta e aplica**. Tudo
 3. **Guardião ⚔️ (aplicar)** — batalha individual com HP, corações e perguntas sorteadas do módulo.
    Vencer dá a insígnia do módulo.
 
+## Duelos ⚔️ (aluno contra aluno)
+
+- Chegue perto de um colega e aperte **E**, ou use o botão **⚔️ Duelo** (tecla **X**). Escolha o modo:
+  - 🧱 **Blocos** — quem recria mais rápido uma tela simples com os bloquinhos de JSX;
+  - ⌨️ **Código** — quem escreve primeiro um componente simples ("Crie um componente chamado App",
+    "Escreva Hello World na tela"…), com checklist ao vivo e um celular mostrando o que o código desenha.
+- A tarefa é **sorteada** e é a mesma para os dois. O convite chega como **notificação no canto com som**:
+  o desafiado continua jogando e aceita/recusa quando quiser (expira em 30 s).
+- Contagem 3-2-1; quem acertar primeiro vence e leva **até 10 moedas** do perdedor (quem tem 0 continua com 0).
+  Desistir ou sair do jogo conta como derrota; depois de 4 minutos dá empate.
+
 ## Recursos
 
 - 📜 **Missão atual** sempre visível + seta amarela guia + marcador ▼ + **minimapa**: o aluno nunca fica perdido

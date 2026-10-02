@@ -53,7 +53,17 @@ Leva uns 10 minutos e evita surpresas.
    ✅ Beto recebe a dica com o nome da Ana e o selo "🤝 Modo cooperação".
 3. Beto acerta. ✅ Ana recebe +10 XP, +2 cooperação e a conquista **Mentor**.
 
-## Teste 6 — dois computadores (o teste que importa)
+## Teste 6 — duelo
+
+1. Ana clica em **⚔️ Duelo (X)**, escolhe **🧱 Blocos**, escolhe o Beto e envia.
+   ✅ Na janela do Beto aparece uma notificação no **canto inferior direito**, com som e barra de tempo;
+   ele continua conseguindo andar.
+2. Beto clica **✔ Aceitar**. ✅ Os dois veem a contagem 3-2-1 e a mesma tela para recriar.
+3. Quem clicar em **Executar e conferir** com a tela certa primeiro vence.
+   ✅ Vencedor: +moedas do outro e +20 XP; perdedor: -moedas (nunca abaixo de 0).
+4. Repita com **⌨️ Código**: digite o componente pedido; o checklist e o celular atualizam enquanto digita.
+
+## Teste 7 — dois computadores (o teste que importa)
 
 1. No PC do professor: `npm start` e anote o IP mostrado.
 2. Em outro PC da mesma rede: abra `http://IP:3000/health`. Deve aparecer `{"ok":true...}`.

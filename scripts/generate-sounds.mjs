@@ -80,6 +80,8 @@ const SOUNDS = {
   boss: synth([[G4, 0.12], [C5, 0.12], [E5, 0.12], [G5, 0.12], [0, 0.05], [E5, 0.1], [G5, 0.1], [C6, 0.45]]),
   achievement: synth([[D5, 0.06, 'triangle'], [G5, 0.06, 'triangle'], [D5, 0.06, 'triangle'], [G5, 0.06, 'triangle'], [C6, 0.25, 'triangle']]),
   click: synth([[900, 0.025]], { volume: 0.2 }),
+  // convite de duelo: "toque de corneta" curto
+  duel: synth([[G4, 0.09, 'square'], [0, 0.03], [G4, 0.09, 'square'], [0, 0.03], [C5, 0.12, 'square'], [E5, 0.12, 'square'], [G5, 0.28, 'square']], { volume: 0.3 }),
 };
 
 fs.mkdirSync(OUT, { recursive: true });

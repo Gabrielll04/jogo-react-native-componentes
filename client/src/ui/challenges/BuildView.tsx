@@ -78,6 +78,7 @@ export function BuildView({ p, submit, locked }: { p: BuildPayload; submit: (a: 
   const lines = useMemo(() => (root ? toLines(root) : []), [root]);
   const selected = findNode(root, sel);
   const styleNames = Object.keys(p.styles);
+  const noStyles = styleNames.length === 0; // duelos: só estrutura, sem estilos
 
   const mutate = (fn: (r: ENode) => void) => {
     if (!root) return;
@@ -194,7 +195,7 @@ export function BuildView({ p, submit, locked }: { p: BuildPayload; submit: (a: 
               ) : null
             }
           />
-          {selected && !['Switch', 'Button'].includes(selected.type) ? (
+          {!noStyles && selected && !['Switch', 'Button'].includes(selected.type) ? (
             <View style={styles.styleBox}>
               <Text style={styles.styleLabel}>
                 🎨 style de <Text style={{ fontFamily: fonts.code, color: colors.codeTag }}>{`<${selected.type}>`}</Text>:
@@ -208,7 +209,7 @@ export function BuildView({ p, submit, locked }: { p: BuildPayload; submit: (a: 
               </View>
             </View>
           ) : null}
-          <CodeView title="estilos.js" code={styleSheetCode} />
+          {noStyles ? null : <CodeView title="estilos.js" code={styleSheetCode} />}
         </View>
 
         {/* ---------- celulares */}
@@ -217,13 +218,13 @@ export function BuildView({ p, submit, locked }: { p: BuildPayload; submit: (a: 
             <View style={{ alignItems: 'center', gap: 6 }}>
               <Text style={[styles.colTitle, { color: colors.gold }]}>🎯 Objetivo</Text>
               <PhoneFrame width={220} height={360}>
-                <RenderScreen root={p.target} styles={p.styles} />
+                <RenderScreen root={p.target} styles={p.styles} pad={noStyles} />
               </PhoneFrame>
             </View>
             <View style={{ alignItems: 'center', gap: 6 }}>
               <Text style={[styles.colTitle, { color: colors.accent }]}>📱 Seu app</Text>
               <PhoneFrame width={220} height={360}>
-                <RenderScreen root={root ? strip(root) : null} styles={p.styles} />
+                <RenderScreen root={root ? strip(root) : null} styles={p.styles} pad={noStyles} />
               </PhoneFrame>
             </View>
           </View>

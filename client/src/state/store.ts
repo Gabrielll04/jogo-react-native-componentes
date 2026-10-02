@@ -6,6 +6,9 @@ import { useSyncExternalStore } from 'react';
 import type {
   AnswerResult,
   ChallengeView,
+  DuelEnd,
+  DuelInvite,
+  DuelStart,
   HelpRequest,
   ModuleState,
   PlayerProgress,
@@ -38,6 +41,13 @@ export interface GameStore {
   emotes: Record<string, { emote: string; at: number }>;
   feed: string[];
   muted: boolean;
+  /** convites de duelo recebidos (notificações no canto) */
+  duelInvites: (DuelInvite & { expiresAt: number })[];
+  /** duelo em andamento (startAt = hora local do "JÁ!") */
+  duel: (DuelStart & { startAt: number }) | null;
+  duelEnd: DuelEnd | null;
+  duelFeedback: { msg: string; at: number } | null;
+  duelOppAttempts: number;
 }
 
 let state: GameStore = {
@@ -57,6 +67,11 @@ let state: GameStore = {
   emotes: {},
   feed: [],
   muted: false,
+  duelInvites: [],
+  duel: null,
+  duelEnd: null,
+  duelFeedback: null,
+  duelOppAttempts: 0,
 };
 
 const listeners = new Set<() => void>();

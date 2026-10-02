@@ -58,6 +58,8 @@ export interface PublicPlayer {
   level: number;
   xp: number;
   emote: string | null;
+  /** em um duelo agora */
+  dueling?: boolean;
 }
 
 export interface CompletionRecord {
@@ -84,6 +86,8 @@ export interface PlayerProgress {
   achievements: string[];
   totalAttempts: number;
   totalCorrect: number;
+  duelsWon: number;
+  duelsLost: number;
   createdAt: number;
   lastSeen: number;
 }
@@ -198,6 +202,42 @@ export interface HelpRequest {
   canHelp?: boolean;
 }
 
+// ---------- Duelos ----------
+
+export interface DuelInvite {
+  duelId: string;
+  fromId: string;
+  fromName: string;
+  fromColor: string;
+  mode: 'blocks' | 'code';
+  stake: number;
+  /** ms até expirar (relativo, evita diferença de relógio entre PCs) */
+  expiresIn: number;
+}
+
+export interface DuelStart {
+  duelId: string;
+  taskId: string;
+  mode: 'blocks' | 'code';
+  opponent: { id: string; name: string; color: string };
+  stake: number;
+  /** ms até começar (contagem 3-2-1) */
+  startsIn: number;
+  maxMs: number;
+}
+
+export interface DuelEnd {
+  duelId: string;
+  result: 'win' | 'lose' | 'draw';
+  reason: 'solved' | 'forfeit' | 'disconnect' | 'timeout';
+  opponentName: string;
+  /** moedas ganhas (+) ou perdidas (-) */
+  coins: number;
+  xp: number;
+  timeMs: number;
+  solution: string;
+}
+
 export type SoundName =
   | 'connect'
   | 'lobby'
@@ -208,4 +248,5 @@ export type SoundName =
   | 'module'
   | 'boss'
   | 'achievement'
-  | 'click';
+  | 'click'
+  | 'duel';

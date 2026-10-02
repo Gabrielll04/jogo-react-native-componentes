@@ -24,6 +24,7 @@ const SOUND_FILES: Record<SoundName, string> = {
   boss: '/sounds/boss.wav',
   achievement: '/sounds/achievement.wav',
   click: '/sounds/click.wav',
+  duel: '/sounds/duel.wav',
 };
 
 const VOLUME: Partial<Record<SoundName, number>> = { click: 0.4 };

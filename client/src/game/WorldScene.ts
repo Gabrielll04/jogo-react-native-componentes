@@ -484,7 +484,7 @@ export class WorldScene extends Phaser.Scene {
       const present = new Set<string>();
       for (const p of s.players) {
         if (p.id === s.playerId) {
-          this.me.status.setText(p.stuck ? '❓' : '');
+          this.me.status.setText(p.dueling ? '⚔️' : p.stuck ? '❓' : '');
           this.me.label.setText(`${p.name} · nv${p.level}`);
           continue;
         }
@@ -496,7 +496,7 @@ export class WorldScene extends Phaser.Scene {
         const a = this.others.get(p.id);
         if (a) {
           a.label.setText(`${p.name} · nv${p.level}`);
-          a.status.setText(p.stuck ? '❓' : p.stationId ? '📝' : '');
+          a.status.setText(p.dueling ? '⚔️' : p.stuck ? '❓' : p.stationId ? '📝' : '');
         }
       }
       for (const id of [...this.others.keys()]) if (!present.has(id)) this.removeOther(id);
@@ -659,6 +659,14 @@ export class WorldScene extends Phaser.Scene {
     for (const m of this.world.mentors) consider(m.x, m.y, { kind: 'mentor', component: m.component, moduleId: m.moduleId });
     for (const st of this.world.stations) consider(st.x, st.y, { kind: 'station', id: st.stationId, moduleId: st.moduleId });
     for (const s of this.world.signs) consider(s.x, s.y, { kind: 'sign', moduleId: s.moduleId });
+    // colegas por perto: dá para desafiar para um duelo
+    for (const [id, a] of this.others) {
+      const d = Phaser.Math.Distance.Between(x, y, a.root.x, a.root.y);
+      if (d < bestD) {
+        bestD = d;
+        best = { kind: 'player', id, name: getState().players.find((p) => p.id === id)?.name ?? '???' };
+      }
+    }
     if (interactKey(best) !== interactKey(this.nearby)) {
       this.nearby = best;
       bridge.emit('nearby', best);

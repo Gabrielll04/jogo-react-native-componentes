@@ -122,7 +122,7 @@ admin.get('/export.json', (_req, res) => {
 
 admin.get('/export.csv', (_req, res) => {
   const stations = MODULES.flatMap((m) => m.stations.map((s) => s.id));
-  const header = ['nome', 'equipe', 'xp', 'moedas', 'cooperacao', 'tentativas', 'acertos', 'modulos_concluidos', ...stations];
+  const header = ['nome', 'equipe', 'xp', 'moedas', 'cooperacao', 'tentativas', 'acertos', 'licoes', 'duelos_vencidos', 'duelos_perdidos', 'modulos_concluidos', ...stations];
   const rows = Object.values(state.progress).map((p) => [
     p.name,
     p.team,
@@ -131,6 +131,9 @@ admin.get('/export.csv', (_req, res) => {
     p.coopPoints,
     p.totalAttempts,
     p.totalCorrect,
+    (p.learned ?? []).length,
+    p.duelsWon ?? 0,
+    p.duelsLost ?? 0,
     p.modulesCompleted.join(' '),
     ...stations.map((s) => (p.completed[s] ? `ok (${p.completed[s].attempts}x${p.completed[s].helped ? ', ajuda' : ''})` : '')),
   ]);

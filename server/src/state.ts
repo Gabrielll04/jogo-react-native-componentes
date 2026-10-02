@@ -36,7 +36,12 @@ class GameState {
       if (!fs.existsSync(SAVE_FILE)) return;
       const data = JSON.parse(fs.readFileSync(SAVE_FILE, 'utf8')) as SaveData;
       this.progress = data.progress ?? {};
-      for (const p of Object.values(this.progress)) p.learned ??= []; // saves antigos
+      for (const p of Object.values(this.progress)) {
+        // saves antigos
+        p.learned ??= [];
+        p.duelsWon ??= 0;
+        p.duelsLost ??= 0;
+      }
       for (const saved of data.modules ?? []) {
         const m = this.modules.find((x) => x.id === saved.id);
         if (m) m.unlocked = saved.unlocked;
@@ -103,6 +108,8 @@ class GameState {
         achievements: [],
         totalAttempts: 0,
         totalCorrect: 0,
+        duelsWon: 0,
+        duelsLost: 0,
         createdAt: Date.now(),
         lastSeen: Date.now(),
       };
@@ -150,6 +157,7 @@ export const ACHIEVEMENTS: Record<string, { title: string; emoji: string }> = {
   cacador_de_chefes: { title: 'Derrotou um chefe', emoji: '⚔️' },
   colecionador: { title: '10 cartas de componentes', emoji: '🃏' },
   mestre: { title: 'Concluiu todos os módulos', emoji: '👑' },
+  duelista: { title: 'Venceu um duelo', emoji: '⚔️' },
 };
 
 /** Concede conquista; retorna true se for nova. */
