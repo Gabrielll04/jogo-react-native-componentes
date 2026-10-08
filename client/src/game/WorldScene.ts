@@ -493,7 +493,15 @@ export class WorldScene extends Phaser.Scene {
           continue;
         }
         present.add(p.id);
-        const a = this.others.get(p.id);
+        let a = this.others.get(p.id);
+        if (!a) {
+          // colega já parado no mapa quando eu entrei: cria na última posição conhecida
+          a = this.makeAvatar(p.name, p.color, false);
+          a.root.setPosition(p.x, p.y);
+          a.tx = p.x;
+          a.ty = p.y;
+          this.others.set(p.id, a);
+        }
         if (a) {
           a.label.setText(`${p.name} · nv${p.level}`);
           a.status.setText(p.dueling ? '⚔️' : p.stuck ? '❓' : p.stationId ? '📝' : '');
@@ -591,6 +599,12 @@ export class WorldScene extends Phaser.Scene {
       a.root.x += dx;
       a.root.y += dy;
       this.animate(a, dx * 10, dy * 10);
+      // dentro das vilas os colegas ficam "fantasmas": translúcidos, por baixo dos Mestres e intangíveis
+      const inside = buildingAt(this.world, a.root.x, a.root.y) !== null;
+      a.root.setAlpha(inside ? 0.35 : 1);
+      a.root.setDepth(inside ? 7 : 20);
+      a.label.setVisible(!inside); // sem nomes empilhados em cima dos Mestres
+      a.status.setVisible(!inside);
     }
     for (const a of [this.me, ...this.others.values()]) {
       if (a.bubble.visible && this.time.now > a.bubbleUntil) a.bubble.setVisible(false);
@@ -659,8 +673,11 @@ export class WorldScene extends Phaser.Scene {
     for (const m of this.world.mentors) consider(m.x, m.y, { kind: 'mentor', component: m.component, moduleId: m.moduleId });
     for (const st of this.world.stations) consider(st.x, st.y, { kind: 'station', id: st.stationId, moduleId: st.moduleId });
     for (const s of this.world.signs) consider(s.x, s.y, { kind: 'sign', moduleId: s.moduleId });
-    // colegas por perto: dá para desafiar para um duelo
+    // colegas por perto: dá para desafiar para um duelo — só fora das vilas.
+    // (Dentro delas só Mestres e terminais são interativos: assim uma multidão
+    // na frente de um Mestre não "rouba" o botão E de ninguém.)
     for (const [id, a] of this.others) {
+      if (this.area !== null || buildingAt(this.world, a.root.x, a.root.y) !== null) continue;
       const d = Phaser.Math.Distance.Between(x, y, a.root.x, a.root.y);
       if (d < bestD) {
         bestD = d;

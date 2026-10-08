@@ -507,9 +507,13 @@ export function setupGame(server: Server) {
   });
 
   // retransmite posições em frequência controlada (10x/s) e só se algo mudou
+  // (a cada 2s manda tudo mesmo sem mudança, para quem acabou de entrar ver os colegas parados)
+  let lastFull = 0;
   setInterval(() => {
-    if (!positionsDirty) return;
+    const full = Date.now() - lastFull > 2000;
+    if (!positionsDirty && !full) return;
     positionsDirty = false;
+    if (full) lastFull = Date.now();
     const packet: [string, number, number][] = [];
     for (const o of online.values()) if (o.inWorld) packet.push([o.playerId, Math.round(o.x), Math.round(o.y)]);
     io.to('world').volatile.emit(EV.SYNC_PLAYERS, packet);

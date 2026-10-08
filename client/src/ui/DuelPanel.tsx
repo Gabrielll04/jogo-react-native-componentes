@@ -2,7 +2,9 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { DUEL_STAKE, type DuelMode } from '@shared/duels';
-import { actions } from '../net/socket';
+import { buildingAt } from '@shared/map';
+import { actions, livePositions } from '../net/socket';
+import { WORLD } from '../game/quest';
 import { useStore } from '../state/store';
 import { Btn } from './Btn';
 import { Overlay } from './Overlay';
@@ -20,6 +22,14 @@ export function DuelPanel({ onClose, preselect }: { onClose: () => void; presele
   const [mode, setMode] = useState<DuelMode>('blocks');
   const [target, setTarget] = useState<string | null>(preselect ?? null);
   const others = players.filter((p) => p.id !== me && p.inWorld);
+  const inVilla = (id: string) => {
+    const pos = livePositions.get(id);
+    return pos ? buildingAt(WORLD, pos.x, pos.y) !== null : false;
+  };
+  const iAmInside = (() => {
+    const pos = me ? livePositions.get(me) : undefined;
+    return pos ? buildingAt(WORLD, pos.x, pos.y) !== null : false;
+  })();
 
   return (
     <Overlay title="⚔️ Desafiar um colega" onClose={onClose} maxWidth={720}>
@@ -39,20 +49,25 @@ export function DuelPanel({ onClose, preselect }: { onClose: () => void; presele
         ))}
       </View>
 
+      {iAmInside ? (
+        <Text style={[styles.rules, { color: colors.warn, marginTop: 10 }]}>
+          🏛️ Você está dentro de uma vila: duelos só podem começar na praça. Saia e tente de novo!
+        </Text>
+      ) : null}
       <Text style={styles.h}>2. Escolha o adversário</Text>
       {others.length === 0 ? <Text style={styles.rules}>Ninguém no mapa agora. Chame um colega! 🙂</Text> : null}
       <View style={{ gap: 8 }}>
         {others.map((p) => (
           <Pressable
             key={p.id}
-            disabled={p.dueling}
+            disabled={p.dueling || inVilla(p.id) || iAmInside}
             onPress={() => setTarget(p.id)}
-            style={[styles.player, target === p.id && styles.playerOn, p.dueling && { opacity: 0.5 }]}
+            style={[styles.player, target === p.id && styles.playerOn, (p.dueling || inVilla(p.id) || iAmInside) && { opacity: 0.5 }]}
           >
             <View style={[styles.dot, { backgroundColor: p.color }]} />
             <Text style={styles.pname}>{p.name}</Text>
             <Text style={styles.pinfo}>nv {p.level}</Text>
-            <Text style={[styles.pinfo, { marginLeft: 'auto' }]}>{p.dueling ? '⚔️ duelando' : target === p.id ? '✔ escolhido' : ''}</Text>
+            <Text style={[styles.pinfo, { marginLeft: 'auto' }]}>{p.dueling ? '⚔️ duelando' : inVilla(p.id) ? '🏛️ dentro de uma vila' : target === p.id ? '✔ escolhido' : ''}</Text>
           </Pressable>
         ))}
       </View>
@@ -61,7 +76,7 @@ export function DuelPanel({ onClose, preselect }: { onClose: () => void; presele
         big
         variant="gold"
         title="⚔️ Enviar desafio"
-        disabled={!target}
+        disabled={!target || iAmInside}
         onPress={() => {
           if (!target) return;
           actions.duelInvite(target, mode);

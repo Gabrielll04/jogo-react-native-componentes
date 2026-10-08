@@ -36,6 +36,9 @@ O aluno não só responde perguntas: ele **aprende, experimenta e aplica**. Tudo
 - Contagem 3-2-1; quem acertar primeiro vence e leva **até 10 moedas** do perdedor (quem tem 0 continua com 0).
   Desistir ou sair do jogo conta como derrota; depois de 4 minutos dá empate.
 
+> **Salas cheias:** dentro das vilas os colegas ficam translúcidos e intangíveis (sem nomes),
+> e não dá para duelar ali — só na praça. Assim 30+ alunos podem usar o mesmo Mestre/terminal ao mesmo tempo.
+
 ## Recursos
 
 - 📜 **Missão atual** sempre visível + seta amarela guia + marcador ▼ + **minimapa**: o aluno nunca fica perdido

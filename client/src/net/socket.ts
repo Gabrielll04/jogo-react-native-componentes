@@ -30,6 +30,9 @@ let profile: { name: string; color: string; team: TeamId } | null = null;
 
 const ID_KEY = 'rnq_playerId';
 
+/** últimas posições conhecidas dos jogadores (para o painel de duelo saber quem está dentro de uma vila) */
+export const livePositions = new Map<string, { x: number; y: number }>();
+
 /** id do jogador: por aba (sessionStorage) com fallback no navegador (localStorage) */
 function savedPlayerId() {
   try {
@@ -96,7 +99,10 @@ export function connect(p: { name: string; color: string; team: TeamId }) {
 
   socket.on(EV.LOBBY_UPDATE, (players: PublicPlayer[]) => setState({ players }));
 
-  socket.on(EV.SYNC_PLAYERS, (packet: [string, number, number][]) => bridge.emit('sync', packet));
+  socket.on(EV.SYNC_PLAYERS, (packet: [string, number, number][]) => {
+    for (const [id, x, y] of packet) livePositions.set(id, { x, y });
+    bridge.emit('sync', packet);
+  });
 
   socket.on(EV.MODULE_UPDATED, (modules: ModuleState[]) => setState({ modules }));
 

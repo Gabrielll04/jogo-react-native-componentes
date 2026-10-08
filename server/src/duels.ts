@@ -22,6 +22,7 @@ import {
   type DuelMode,
 } from '../../shared/duels';
 import { EV } from '../../shared/events';
+import { buildingAt, buildWorld } from '../../shared/map';
 import { compareTree, countNodes, treeToCode } from '../../shared/jsx';
 import type { DuelEnd, DuelInvite, DuelStart } from '../../shared/types';
 import { afterProgressChange, award, broadcastLobby, findOnlineByPlayer, getIo, notice, sound, type OnlinePlayer } from './game';
@@ -40,6 +41,9 @@ interface Duel {
 }
 
 const duels = new Map<string, Duel>();
+const world = buildWorld();
+/** dentro de uma vila (prédio de módulo) não se começa duelo: ali só Mestres e terminais */
+const inVilla = (o: OnlinePlayer) => buildingAt(world, o.x, o.y) !== null;
 
 const nameOf = (playerId: string) => state.progress[playerId]?.name ?? '???';
 const other = (d: Duel, playerId: string) => (d.a === playerId ? d.b : d.a);
@@ -183,6 +187,8 @@ export function registerDuelHandlers(socket: Socket, getMe: () => OnlinePlayer |
     const mode: DuelMode = data?.mode === 'code' ? 'code' : 'blocks';
     const target = findOnlineByPlayer(String(data?.targetId ?? ''));
     if (!target || target.playerId === me.playerId || !target.inWorld) return notice(socket, 'Esse colega não está no mapa agora.', 'warn');
+    if (inVilla(me)) return notice(socket, '🏛️ Dentro das vilas não dá para duelar. Vá até a praça!', 'warn');
+    if (inVilla(target)) return notice(socket, `${nameOf(target.playerId)} está dentro de uma vila. Espere ele(a) sair!`, 'warn');
     if (me.duelId) return notice(socket, 'Você já está em um duelo!', 'warn');
     if (target.duelId) return notice(socket, `${nameOf(target.playerId)} já está duelando. Tente daqui a pouco!`, 'warn');
     for (const d of duels.values()) {
@@ -218,6 +224,11 @@ export function registerDuelHandlers(socket: Socket, getMe: () => OnlinePlayer |
       return;
     }
     if (!data.accept) return cancelPending(d, `🙅 ${nameOf(d.b)} recusou o duelo.`);
+    // quem aceitou o convite (na praça) pode já ter entrado numa vila: o duelo não começa lá dentro
+    if (inVilla(me)) {
+      notice(socket, '🏛️ Saia da vila para aceitar o duelo.', 'warn');
+      return;
+    }
     start(d);
   });
 
