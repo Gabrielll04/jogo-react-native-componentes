@@ -15,6 +15,9 @@ import { DuelOverlay } from '../ui/DuelOverlay';
 import { DuelPanel } from '../ui/DuelPanel';
 import { HelpPanel } from '../ui/HelpPanel';
 import { InventoryPanel } from '../ui/InventoryPanel';
+import { LabOverlay } from '../ui/LabOverlay';
+import { RaceBadge, RaceOverlay } from '../ui/RaceOverlay';
+import { ShopPanel } from '../ui/ShopPanel';
 import { LessonOverlay } from '../ui/LessonOverlay';
 import { Mascot, Say } from '../ui/Mascot';
 import { SignDialog } from '../ui/SignDialog';
@@ -27,6 +30,8 @@ export function WorldScreen() {
   const modules = useStore((s) => s.modules);
   const challenge = useStore((s) => s.challenge);
   const duel = useStore((s) => s.duel);
+  const race = useStore((s) => s.race);
+  const raceOpen = useStore((s) => s.raceOpen);
   const muted = useStore((s) => s.muted);
   const helpCount = useStore((s) => s.helpRequests.length);
   const feed = useStore((s) => s.feed);
@@ -34,7 +39,7 @@ export function WorldScreen() {
   const [area, setArea] = useState<number | null>(null);
   const [sign, setSign] = useState<number | null>(null);
   const [lesson, setLesson] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'inv' | 'help' | 'duel' | null>(null);
+  const [panel, setPanel] = useState<'inv' | 'help' | 'duel' | 'shop' | 'lab' | null>(null);
   const [duelTarget, setDuelTarget] = useState<string | null>(null);
   const [tutorial, setTutorial] = useState<number>(() => {
     try {
@@ -44,7 +49,8 @@ export function WorldScreen() {
     }
   });
 
-  const overlayOpen = Boolean(challenge || sign !== null || panel || lesson || duel);
+  const showRace = Boolean(race && raceOpen && !duel);
+  const overlayOpen = Boolean(challenge || sign !== null || panel || lesson || duel || showRace);
 
   // ao começar um duelo, fecha lição/painéis abertos (o duelo vira a tela principal)
   useEffect(() => {
@@ -98,9 +104,11 @@ export function WorldScreen() {
         setPanel(null);
         setSign(null);
       }
-      if (challenge || lesson || getState().duel) return;
+      if (challenge || lesson || getState().duel || (getState().race && getState().raceOpen)) return;
       if (e.key.toLowerCase() === 'i') setPanel((p) => (p === 'inv' ? null : 'inv'));
       if (e.key.toLowerCase() === 'h') setPanel((p) => (p === 'help' ? null : 'help'));
+      if (e.key.toLowerCase() === 'l') setPanel((p) => (p === 'lab' ? null : 'lab'));
+      if (e.key.toLowerCase() === 'k') setPanel((p) => (p === 'shop' ? null : 'shop'));
       if (e.key.toLowerCase() === 'x') {
         setDuelTarget(null);
         setPanel((p) => (p === 'duel' ? null : 'duel'));
@@ -187,6 +195,10 @@ export function WorldScreen() {
       <View style={styles.minimapFrame} pointerEvents="none">
         <Text style={styles.minimapLabel}>MAPA</Text>
       </View>
+      <View style={styles.sideButtons} pointerEvents="box-none">
+        <Btn small variant="gold" title="🛍️ Loja (K)" onPress={() => setPanel(panel === 'shop' ? null : 'shop')} />
+        <Btn small variant="primary" title="🧪 Laboratório (L)" onPress={() => setPanel(panel === 'lab' ? null : 'lab')} />
+      </View>
 
       <AreaTitle area={area} />
 
@@ -205,7 +217,7 @@ export function WorldScreen() {
       {/* ---------- controles + emotes */}
       <View style={styles.controls} pointerEvents="box-none">
         <Text style={styles.controlsText}>
-          <Key k="WASD" /> andar  <Key k="E" /> interagir  <Key k="I" /> cartas  <Key k="X" /> duelo  <Key k="1-6" /> emotes
+          <Key k="WASD" /> andar  <Key k="E" /> interagir  <Key k="I" /> cartas  <Key k="X" /> duelo  <Key k="L" /> laboratório  <Key k="K" /> loja  <Key k="1-6" /> emotes
         </Text>
         <View style={{ flexDirection: 'row', gap: 4, marginTop: 6 }}>
           {EMOTES.map((e) => (
@@ -220,6 +232,8 @@ export function WorldScreen() {
       {panel === 'inv' ? <InventoryPanel onClose={() => setPanel(null)} /> : null}
       {panel === 'help' ? <HelpPanel onClose={() => setPanel(null)} /> : null}
       {panel === 'duel' ? <DuelPanel preselect={duelTarget} onClose={() => setPanel(null)} /> : null}
+      {panel === 'shop' ? <ShopPanel onClose={() => setPanel(null)} /> : null}
+      {panel === 'lab' ? <LabOverlay onClose={() => setPanel(null)} /> : null}
       {lesson ? (
         <LessonOverlay
           component={lesson}
@@ -230,7 +244,9 @@ export function WorldScreen() {
         />
       ) : null}
       {challenge ? <ChallengeOverlay /> : null}
+      {showRace ? <RaceOverlay /> : null}
       {duel ? <DuelOverlay /> : null}
+      {!overlayOpen ? <RaceBadge /> : null}
       {/* convites de duelo: no canto, por cima de tudo, sem travar o jogo */}
       <DuelInvites />
     </View>
@@ -388,6 +404,7 @@ const styles = StyleSheet.create({
     borderColor: '#2b3263',
     borderRadius: 8,
   },
+  sideButtons: { position: 'absolute', top: 262, right: 12, gap: 6, alignItems: 'flex-end' },
   minimapLabel: {
     position: 'absolute',
     bottom: -20,

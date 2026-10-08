@@ -5,7 +5,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import type { Server, Socket } from 'socket.io';
-import { AVATAR_COLORS, EMOTES, EV, RULES, TEAMS } from '../../shared/events';
+import { AVATAR_COLORS, EMOTES, EV, nameKey, RULES, TEAMS } from '../../shared/events';
 import { buildWorld, MAP_H, MAP_W, TILE } from '../../shared/map';
 import { COMPONENTS, findStation, levelFromXp, MODULES } from '../../shared/modules';
 import type {
@@ -19,6 +19,8 @@ import type {
 } from '../../shared/types';
 import { createInstance, nextBossRound, nextHint, reshuffleRound, toView, type Instance } from './challengeEngine';
 import { clearAllDuels, playerGone, registerDuelHandlers } from './duels';
+import { raceGone, raceJoined, registerRaceHandlers, stopRace } from './race';
+import { registerShopHandlers } from './shop';
 import { ACHIEVEMENTS, grantAchievement, state } from './state';
 
 const world = buildWorld();
@@ -35,6 +37,8 @@ export interface OnlinePlayer {
   lastEmoteAt: number;
   /** duelo em andamento */
   duelId: string | null;
+  /** última vez que aprendeu/concluiu algo (painel: alunos parados) */
+  lastProgressAt: number;
 }
 
 /** socketId -> jogador online */
@@ -68,11 +72,29 @@ function toPublic(o: OnlinePlayer): PublicPlayer {
     xp: p.xp,
     emote: null,
     dueling: Boolean(o.duelId),
+    look: p.equipped,
   };
 }
 
 export function onlinePlayers() {
   return [...online.values()].map(toPublic);
+}
+
+/** Detalhes de quem está online (painel do professor: "quem precisa de ajuda"). */
+export function onlineDetails() {
+  return [...online.values()].map((o) => {
+    const p = state.progress[o.playerId];
+    const mod = o.area !== null ? MODULES.find((m) => m.id === o.area) : null;
+    return {
+      id: o.playerId,
+      name: p.name,
+      where: o.duelId ? '⚔️ duelando' : o.instance ? `📝 ${o.instance.title}` : !o.inWorld ? '🏰 lobby' : mod ? `${mod.emoji} ${mod.name}` : '🗺️ praça',
+      stuck: o.stuck,
+      wrongNow: o.instance?.wrong ?? 0,
+      guessesNow: o.instance?.guesses ?? 0,
+      idleMs: Date.now() - o.lastProgressAt,
+    };
+  });
 }
 
 export function broadcastLobby() {
@@ -158,6 +180,7 @@ export function announce(text: string) {
 
 export function resetAll() {
   clearAllDuels();
+  stopRace(false);
   state.reset();
   for (const o of online.values()) {
     o.instance = null;
@@ -168,6 +191,42 @@ export function resetAll() {
     s?.disconnect(true);
   }
   online.clear();
+}
+
+/** Tira o jogador da lista de online (desconectou, foi substituído por outra aba ou expulso). */
+function dropOnline(o: OnlinePlayer) {
+  const p = state.progress[o.playerId];
+  if (o.instance) state.stationStats(o.instance.stationId).quits++;
+  playerGone(o);
+  raceGone(o);
+  online.delete(o.socketId);
+  if (p) {
+    p.lastSeen = Date.now();
+    state.log(`${p.name} saiu`);
+  }
+}
+
+/** Desconecta um aluno (professor bloqueou ou apagou o perfil). */
+export function kickPlayer(playerId: string, text: string) {
+  const o = findOnlineByPlayer(playerId);
+  if (!o) return;
+  const s = io.sockets.sockets.get(o.socketId);
+  s?.emit(EV.LOGIN_ERROR, { text });
+  dropOnline(o);
+  s?.disconnect(true);
+  io.emit(EV.PLAYER_DISCONNECT, { id: playerId });
+  broadcastLobby();
+  broadcastHelpRequests();
+}
+
+/** Professor renomeou o aluno: atualiza quem está online. */
+export function playerRenamed(playerId: string) {
+  const o = findOnlineByPlayer(playerId);
+  const p = state.progress[playerId];
+  if (!o || !p) return;
+  notice(o.socketId, `✏️ O professor mudou o seu nome para "${p.name}". Use esse nome da próxima vez que entrar!`, 'info');
+  sendProgress(o.socketId, p);
+  broadcastLobby();
 }
 
 // ------------------------------------------------------------------ socket
@@ -183,14 +242,38 @@ export function setupGame(server: Server) {
     // ---- entrada do jogador
     socket.on(EV.PLAYER_CONNECT, (data: { playerId?: string; name?: string; color?: string; team?: string }) => {
       if (me) return;
-      const name = String(data?.name ?? '').trim().slice(0, 16) || `Aluno${Math.floor(Math.random() * 900 + 100)}`;
+      const typed = String(data?.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 16);
       const color = AVATAR_COLORS.includes(String(data?.color)) ? String(data.color) : AVATAR_COLORS[0];
       const team = (TEAMS.some((t) => t.id === data?.team) ? data.team : 'azul') as TeamId;
-      // reaproveita o id salvo no navegador, a menos que já esteja em uso (ex.: 2 abas)
-      let playerId = typeof data?.playerId === 'string' && /^[\w-]{6,64}$/.test(data.playerId) ? data.playerId : '';
-      if (!playerId || findOnlineByPlayer(playerId)) playerId = randomUUID();
+      const fail = (text: string) => {
+        socket.emit(EV.LOGIN_ERROR, { text });
+        socket.disconnect(true);
+      };
+      if (nameKey(typed).length < 2) return fail('Digite o seu nome (pelo menos 2 letras).');
 
-      const p = state.getOrCreate(playerId, name, color, team);
+      // O NOME identifica o aluno: quem já jogou entra direto no perfil salvo (server/data/save.json).
+      const browserId = typeof data?.playerId === 'string' ? data.playerId : '';
+      const saved = state.findByName(typed);
+      if (saved?.banned) {
+        state.log(`🚫 ${saved.name} tentou entrar, mas está bloqueado(a)`);
+        return fail('🚫 Você foi bloqueado(a) pelo professor. Fale com ele(a).');
+      }
+      const playerId = saved?.id ?? randomUUID();
+      const already = findOnlineByPlayer(playerId);
+      if (already) {
+        if (browserId === playerId) {
+          // é a mesma pessoa reconectando (queda de rede, outra aba): a conexão antiga sai
+          const old = io.sockets.sockets.get(already.socketId);
+          old?.emit(EV.NOTICE, { text: 'Você entrou em outra aba/computador. Esta aba foi desconectada.', kind: 'warn' });
+          dropOnline(already); // antes do disconnect: o handler de 'disconnect' da conexão antiga vê que ela já saiu
+          old?.disconnect(true);
+        } else {
+          state.log(`${typed}: tentativa de entrar com um nome que já está em uso`);
+          return fail(`Já tem alguém jogando como "${saved!.name}" agora. Se for você, feche a outra aba. Se não for, use também o seu sobrenome.`);
+        }
+      }
+
+      const p = state.getOrCreate(playerId, saved?.name ?? typed, color, team);
       me = {
         socketId: socket.id,
         playerId,
@@ -202,6 +285,7 @@ export function setupGame(server: Server) {
         instance: null,
         lastEmoteAt: 0,
         duelId: null,
+        lastProgressAt: Date.now(),
       };
       online.set(socket.id, me);
       socket.emit(EV.WELCOME, {
@@ -211,9 +295,10 @@ export function setupGame(server: Server) {
         players: onlinePlayers(),
         teamTotals: state.teamTotals(),
         achievements: ACHIEVEMENTS,
+        returning: Boolean(saved),
       });
       sound(socket, 'lobby');
-      state.log(`${name} entrou no lobby (${team})`);
+      state.log(`${p.name} entrou no lobby (${team})${saved ? '' : ' — perfil novo'}`);
       broadcastLobby();
       broadcastHelpRequests();
     });
@@ -225,6 +310,7 @@ export function setupGame(server: Server) {
       socket.join('world');
       positionsDirty = true;
       broadcastLobby();
+      raceJoined(me); // corrida da turma em andamento: entra nela
     });
 
     socket.on(EV.LEAVE_WORLD, () => {
@@ -305,8 +391,10 @@ export function setupGame(server: Server) {
 
       const inst = createInstance(me.playerId, stationId);
       if (!inst) return notice(socket, 'Desafio sem conteúdo configurado.', 'warn');
+      if (me.instance) state.stationStats(me.instance.stationId).quits++;
       me.instance = inst;
       me.stuck = false;
+      state.stationStats(stationId).starts++;
       socket.emit(EV.CHALLENGE_DATA, toView(inst));
       broadcastLobby();
     });
@@ -318,12 +406,19 @@ export function setupGame(server: Server) {
       const answer = data.answer;
       if (typeof answer !== 'string' && (typeof answer !== 'object' || answer === null)) return;
 
+      // espera depois de errar: responder de novo antes disso não vale (nem conta tentativa)
+      const now = Date.now();
+      if (now < inst.lockUntil) {
+        return notice(socket, `🧠 Leia a explicação e pense mais um pouco (${Math.ceil((inst.lockUntil - now) / 1000)}s)`, 'warn');
+      }
+
       inst.attempts++;
       p.totalAttempts++;
       const correct = inst.round.check(answer);
       let result: AnswerResult;
 
       if (correct) {
+        inst.streak = 0;
         p.totalCorrect++;
         award(socket.id, p, 'primeiro_acerto');
         if (inst.boss) {
@@ -333,6 +428,7 @@ export function setupGame(server: Server) {
             inst.boss.round++;
             const { reveal, explanation } = inst.round;
             nextBossRound(inst);
+            inst.shownAt = Date.now();
             sound(socket, 'correct');
             result = {
               correct: true,
@@ -350,7 +446,23 @@ export function setupGame(server: Server) {
           result = completeStation(me, inst, p);
         }
       } else {
+        // ---- errou: foi rápido demais? Então pareceu CHUTE (tentar combinações até acertar)
+        const thinkMs = now - Math.max(inst.shownAt, inst.lockUntil);
+        const guess = thinkMs < RULES.GUESS_FAST_MS[inst.type];
         inst.wrong++;
+        inst.streak++;
+        inst.penaltyMs += RULES.WRONG_PENALTY_MS + (guess ? RULES.GUESS_PENALTY_MS : 0);
+        const steps = RULES.WRONG_COOLDOWN_MS;
+        const cooldownMs = steps[Math.min(inst.streak, steps.length) - 1] + (guess ? RULES.GUESS_EXTRA_COOLDOWN_MS : 0);
+        inst.lockUntil = now + cooldownMs;
+        const st = state.stationStats(inst.stationId);
+        st.wrong++;
+        if (guess) {
+          inst.guesses++;
+          p.totalGuesses++;
+          st.guesses++;
+        }
+        const extra = { cooldownMs, guess, penaltyMs: inst.penaltyMs };
         sound(socket, 'wrong');
         if (inst.boss) {
           inst.boss.hearts--;
@@ -368,7 +480,8 @@ export function setupGame(server: Server) {
           } else {
             const fb = inst.round.wrongFeedback(answer);
             nextBossRound(inst); // nova pergunta: não dá para "chutar" até acertar
-            result = { correct: false, explanation: `💔 ${fb}`, xpGained: 0, coinsGained: 0, completed: false, next: toView(inst) };
+            inst.shownAt = Date.now();
+            result = { correct: false, explanation: `💔 ${fb}`, xpGained: 0, coinsGained: 0, completed: false, next: toView(inst), ...extra };
           }
         } else {
           const fb = inst.round.wrongFeedback(answer);
@@ -378,8 +491,9 @@ export function setupGame(server: Server) {
             broadcastHelpRequests();
             broadcastLobby();
           }
-          result = { correct: false, explanation: fb, xpGained: 0, coinsGained: 0, completed: false, next: toView(inst) };
+          result = { correct: false, explanation: fb, xpGained: 0, coinsGained: 0, completed: false, next: toView(inst), ...extra };
         }
+        if (guess) state.log(`🎲 ${p.name} chutou em "${inst.title}" (errou em ${(thinkMs / 1000).toFixed(1)}s)`);
         state.save();
       }
       socket.emit(EV.ANSWER_RESULT, result);
@@ -388,6 +502,7 @@ export function setupGame(server: Server) {
 
     socket.on(EV.CANCEL_CHALLENGE, () => {
       if (!me) return;
+      if (me.instance) state.stationStats(me.instance.stationId).quits++;
       me.instance = null;
       if (me.stuck) {
         me.stuck = false;
@@ -462,6 +577,7 @@ export function setupGame(server: Server) {
       if (p.learned.includes(component)) return; // revisão: sem recompensa
 
       p.learned.push(component);
+      me.lastProgressAt = Date.now();
       if (!p.cards.includes(component)) p.cards.push(component);
       p.xp += 15;
       p.coins += 5;
@@ -480,6 +596,20 @@ export function setupGame(server: Server) {
 
     // ---- duelos ⚔️ (ver duels.ts)
     registerDuelHandlers(socket, () => me);
+    registerRaceHandlers(socket, () => me);
+    registerShopHandlers(socket, () => me);
+
+    // ---- Laboratório livre 🧪 (sem nota: só a conquista na primeira tela "de verdade")
+    socket.on(EV.LAB_BUILT, (data: { nodes: number }) => {
+      if (!me) return;
+      if (Number(data?.nodes) >= 4) {
+        const p = state.progress[me.playerId];
+        if (!p.achievements.includes('cientista')) {
+          award(socket.id, p, 'cientista');
+          afterProgressChange(me);
+        }
+      }
+    });
 
     // ---- emotes
     socket.on(EV.EMOTE, (data: { emote: string }) => {
@@ -491,14 +621,9 @@ export function setupGame(server: Server) {
     });
 
     socket.on('disconnect', () => {
-      if (!me) return;
-      const p = state.progress[me.playerId];
-      playerGone(me);
-      online.delete(socket.id);
-      if (p) {
-        p.lastSeen = Date.now();
-        state.log(`${p.name} saiu`);
-      }
+      // já removido? (ex.: o aluno entrou de novo em outra aba e esta conexão foi substituída)
+      if (!me || online.get(socket.id) !== me) return;
+      dropOnline(me);
       io.emit(EV.PLAYER_DISCONNECT, { id: me.playerId });
       broadcastLobby();
       broadcastHelpRequests();
@@ -523,19 +648,31 @@ export function setupGame(server: Server) {
 /** Calcula recompensas e registra a conclusão de uma estação. */
 function completeStation(me: OnlinePlayer, inst: Instance, p: PlayerProgress): AnswerResult {
   const firstTime = !p.completed[inst.stationId];
-  const timeMs = Date.now() - inst.startedAt;
+  const realMs = Date.now() - inst.startedAt;
+  // tempo final = tempo real + penalidade por erros e chutes
+  const timeMs = realMs + inst.penaltyMs;
   let xp: number;
   let coins: number;
   if (firstTime) {
     const base = XP_BY_TYPE[inst.type];
-    xp = Math.max(Math.round(base / 2), base - inst.wrong * 5 - inst.hintsShown.length * 5);
+    // cada chute custa mais que um erro "pensado"
+    xp = Math.max(Math.round(base * 0.3), base - inst.wrong * 5 - inst.guesses * 10 - inst.hintsShown.length * 5);
     if (inst.helped) xp = Math.round(xp * 0.8); // ajudado ganha um pouco menos: responder pelo colega não compensa
-    coins = inst.type === 'boss_challenge' ? 30 : inst.wrong === 0 ? 10 : 5;
-    p.completed[inst.stationId] = { at: Date.now(), attempts: inst.attempts, timeMs, helped: inst.helped };
+    coins = inst.type === 'boss_challenge' ? (inst.guesses ? 15 : 30) : inst.wrong === 0 ? 10 : inst.guesses ? 2 : 5;
+    p.completed[inst.stationId] = {
+      at: Date.now(),
+      attempts: inst.attempts,
+      timeMs,
+      helped: inst.helped,
+      guesses: inst.guesses,
+      penaltyMs: inst.penaltyMs,
+    };
+    state.stationStats(inst.stationId).solved++;
+    me.lastProgressAt = Date.now();
   } else {
     // treino: rejogar dá pouca recompensa (evita "farmar" XP)
     xp = 5;
-    coins = 1;
+    coins = inst.guesses ? 0 : 1;
   }
   p.xp += xp;
   p.coins += coins;
@@ -549,6 +686,9 @@ function completeStation(me: OnlinePlayer, inst: Instance, p: PlayerProgress): A
     coinsGained: coins,
     completed: true,
     reveal: inst.round.reveal,
+    timeMs: realMs,
+    penaltyMs: inst.penaltyMs,
+    guesses: inst.guesses,
   };
 
   if (firstTime && inst.wrong === 0) award(me.socketId, p, 'sem_erros');
@@ -590,7 +730,10 @@ function completeStation(me: OnlinePlayer, inst: Instance, p: PlayerProgress): A
     sound(me.socketId, 'correct');
   }
 
-  state.log(`${p.name} ${firstTime ? 'concluiu' : 'treinou'} "${inst.title}" (${inst.attempts} tentativa(s), ${(timeMs / 1000).toFixed(0)}s${inst.helped ? ', com ajuda' : ''})`);
+  state.log(
+    `${p.name} ${firstTime ? 'concluiu' : 'treinou'} "${inst.title}" (${inst.attempts} tentativa(s), ${(realMs / 1000).toFixed(0)}s` +
+      `${inst.penaltyMs ? ` +${inst.penaltyMs / 1000}s de penalidade` : ''}${inst.guesses ? `, ${inst.guesses} chute(s)` : ''}${inst.helped ? ', com ajuda' : ''})`
+  );
   io.emit(EV.CHALLENGE_COMPLETED, { playerId: p.id, name: p.name, stationId: inst.stationId, title: inst.title });
   broadcastHelpRequests();
   return result;

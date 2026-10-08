@@ -33,6 +33,15 @@
   .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .ok { color:var(--ok); } .stuck { color:#ffb020; }
   .team { padding:1px 8px; border-radius:99px; font-size:12px; color:#fff; }
+  button.sm { padding:3px 7px; font-size:12px; }
+  tr.banned td { opacity:.55; } tr.banned td.act { opacity:1; }
+  .warn { color:#ffb020; } .bad { color:var(--bad); }
+  .bar { display:inline-block; height:8px; border-radius:4px; background:linear-gradient(90deg,#2fbf5b,#ffb020,#e5484d); vertical-align:middle; }
+  .race { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; }
+  .race ol { margin:6px 0 0; padding-left:22px; }
+  .hint { font-size:12px; color:var(--muted); margin:6px 0 0; }
+  .att { display:flex; flex-direction:column; gap:6px; }
+  .att div { border:1px solid var(--line); border-radius:8px; padding:6px 10px; }
 </style>
 </head>
 <body>
@@ -62,8 +71,21 @@
       <h2>Módulos (portas do mapa)</h2>
       <div class="modules" id="modules"></div>
     </section>
+    <section class="full">
+      <h2>🏁 Corrida da turma</h2>
+      <div class="race">
+        <div class="row">
+          <button onclick="startRace('blocks')">🧱 Iniciar corrida de Blocos</button>
+          <button onclick="startRace('code')">⌨️ Iniciar corrida de Código</button>
+          <button class="danger" onclick="stopRace()">⏹ Encerrar</button>
+        </div>
+        <div id="race" style="flex:1;min-width:280px"></div>
+      </div>
+      <p class="hint">Todos que estão no mapa recebem a mesma tarefa (sorteada). Ranking por ordem de chegada: 🥇 +40 XP +20 moedas · 🥈 +30/+15 · 🥉 +25/+10 · quem terminar +15/+5. Duração máxima: 3 minutos.</p>
+    </section>
     <section>
       <h2>Jogadores</h2>
+      <p class="hint" style="margin:0 0 8px">O aluno entra pelo NOME: digitando o mesmo nome ele volta ao próprio progresso. ✏️ renomeia · 🚫 bloqueia (não consegue mais entrar) · 🗑️ apaga o perfil. ⚠️ = nome repetido no save.</p>
       <table id="players"></table>
     </section>
     <section>
@@ -74,6 +96,15 @@
       </div>
       <h2 style="margin-top:18px">Placar das equipes</h2>
       <div id="teams"></div>
+    </section>
+    <section>
+      <h2>📊 Desafios mais difíceis para a turma</h2>
+      <table id="insights"></table>
+      <p class="hint">Tentativas e tempo médios de quem concluiu. 🎲 = respostas rápidas demais (chutes). Desistências = abriu e fechou sem terminar. Use para decidir o que revisar na próxima aula.</p>
+    </section>
+    <section>
+      <h2>🙋 Quem precisa de ajuda agora</h2>
+      <div class="att" id="attention"></div>
     </section>
     <section class="full">
       <h2>Quem completou cada desafio</h2>
@@ -115,10 +146,36 @@
   async function toggle(id, unlock) { await api(`modules/${id}/${unlock ? 'unlock' : 'lock'}`, { method:'POST' }); refresh(); }
   async function sendAnnounce() { const text = $('announce').value; if (!text) return; await api('announce', { method:'POST', body: JSON.stringify({ text }) }); $('announce').value=''; }
   async function resetAll() { if (!confirm('Apagar TODO o progresso dos alunos? Isso não pode ser desfeito.')) return; await api('reset', { method:'POST' }); refresh(); }
+  async function startRace(mode) {
+    const r = await api('race/start', { method:'POST', body: JSON.stringify({ mode }) });
+    if (!r.ok) alert(r.error || 'Não foi possível iniciar a corrida.');
+    refresh();
+  }
+  async function stopRace() { await api('race/stop', { method:'POST' }); refresh(); }
+
+  async function renamePlayer(id, current) {
+    const name = prompt('Novo nome para o aluno (é com ele que o aluno vai entrar):', current);
+    if (!name || name.trim() === current) return;
+    const r = await api(`players/${id}/rename`, { method:'POST', body: JSON.stringify({ name }) });
+    if (!r.ok) alert(r.error);
+    refresh();
+  }
+  async function banPlayer(id, name, banned) {
+    if (banned && !confirm(`Bloquear ${name}? Ele(a) será desconectado e não conseguirá entrar com esse nome até você desbloquear.`)) return;
+    await api(`players/${id}/ban`, { method:'POST', body: JSON.stringify({ banned }) });
+    refresh();
+  }
+  async function deletePlayer(id, name) {
+    if (!confirm(`Apagar o perfil de ${name}? Todo o progresso dele(a) será perdido (fica só no backup).`)) return;
+    await api(`players/${id}`, { method:'DELETE' });
+    refresh();
+  }
+  const fmtS = (ms) => ms >= 60000 ? `${Math.floor(ms/60000)}min ${Math.round((ms%60000)/1000)}s` : `${Math.round(ms/1000)}s`;
+
   function download(file) { window.open(`/admin/${file}?senha=${encodeURIComponent(senha)}`, '_blank'); }
 
   async function refresh() {
-    const [data, logs] = await Promise.all([api('progress'), api('logs')]);
+    const [data, logs, ins, race] = await Promise.all([api('progress'), api('logs'), api('insights'), api('race')]);
     const online = new Set(data.online);
     $('summary').textContent = `${online.size} online · ${data.players.length} aluno(s) registrados`;
 
@@ -131,15 +188,24 @@
       </div>`).join('');
 
     const players = [...data.players].sort((a, b) => b.xp - a.xp);
-    $('players').innerHTML = `<tr><th></th><th>Nome</th><th>Equipe</th><th>Nível</th><th>XP</th><th>🪙</th><th>🤝</th><th>📚 Lições</th><th>Desafios</th><th>⚔️ Duelos</th><th>Módulos</th><th>Acertos</th></tr>` +
-      players.map((p) => `<tr>
+    const key = (n) => n.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const count = {}; players.forEach((p) => { count[key(p.name)] = (count[key(p.name)] || 0) + 1; });
+    $('players').innerHTML = `<tr><th></th><th>Nome</th><th>Ações</th><th>Equipe</th><th>Nível</th><th>XP</th><th>🪙</th><th>🤝</th><th>📚 Lições</th><th>Desafios</th><th>🎲 Chutes</th><th>⚔️ Duelos</th><th>🏁</th><th>Módulos</th><th>Acertos</th></tr>` +
+      players.map((p) => `<tr class="${p.banned ? 'banned' : ''}">
         <td><span class="dot" style="background:${online.has(p.id) ? 'var(--ok)' : '#555'}"></span></td>
-        <td><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</td>
+        <td><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${count[key(p.name)] > 1 ? ' <span class="warn" title="Nome repetido: renomeie um deles">⚠️</span>' : ''}${p.banned ? ' <span class="bad">🚫 bloqueado</span>' : ''}</td>
+        <td class="act">
+          <button class="sm" title="Renomear" onclick='renamePlayer(${JSON.stringify(p.id)}, ${esc(JSON.stringify(p.name))})'>✏️</button>
+          <button class="sm" title="${p.banned ? 'Desbloquear' : 'Bloquear'}" onclick='banPlayer(${JSON.stringify(p.id)}, ${esc(JSON.stringify(p.name))}, ${!p.banned})'>${p.banned ? '✅' : '🚫'}</button>
+          <button class="sm" title="Apagar perfil" onclick='deletePlayer(${JSON.stringify(p.id)}, ${esc(JSON.stringify(p.name))})'>🗑️</button>
+        </td>
         <td><span class="team" style="background:${TEAM_COLORS[p.team]}">${p.team}</span></td>
         <td>${Math.floor(p.xp / 100) + 1}</td><td>${p.xp}</td><td>${p.coins}</td><td>${p.coopPoints}</td>
         <td title="${esc((p.learned || []).join(', '))}">${(p.learned || []).length}/21</td>
         <td>${Object.keys(p.completed).length}</td>
+        <td class="${(p.totalGuesses || 0) >= 5 ? 'warn' : ''}">${p.totalGuesses || 0}</td>
         <td>${p.duelsWon || 0}V / ${p.duelsLost || 0}D</td>
+        <td>${p.racesWon || 0}</td>
         <td>${p.modulesCompleted.map((id) => '🏆' + id).join(' ') || '-'}</td>
         <td>${p.totalCorrect}/${p.totalAttempts}</td>
       </tr>`).join('');
@@ -148,8 +214,44 @@
     $('matrix').innerHTML = `<tr><th>Aluno</th>${stations.map((s) => `<th title="${esc(s.title)}">${s.emoji} ${s.id}</th>`).join('')}</tr>` +
       players.map((p) => `<tr><td>${esc(p.name)}</td>${stations.map((s) => {
         const c = p.completed[s.id];
-        return `<td>${c ? `<span class="ok" title="${c.attempts} tentativa(s), ${Math.round(c.timeMs/1000)}s">✅${c.helped ? '🤝' : ''}</span>` : '<span class="muted">·</span>'}</td>`;
+        return `<td>${c ? `<span class="ok" title="${c.attempts} tentativa(s), ${Math.round(c.timeMs/1000)}s${c.guesses ? `, ${c.guesses} chute(s)` : ''}">✅${c.helped ? '🤝' : ''}${c.guesses ? '🎲' : ''}</span>` : '<span class="muted">·</span>'}</td>`;
       }).join('')}</tr>`).join('');
+
+    // ---- corrida
+    if (race.active) {
+      const left = Math.max(0, race.endsAt - Date.now());
+      const toStart = race.startsAt - Date.now();
+      $('race').innerHTML = `<b>${race.mode === 'code' ? '⌨️' : '🧱'} ${esc(race.title)}</b> — ${toStart > 0 ? `começa em ${Math.ceil(toStart/1000)}s` : `faltam ${fmtS(left)}`} · ${race.finishers.length}/${race.players} terminaram` +
+        `<ol>${race.finishers.map((f) => `<li>${['🥇','🥈','🥉'][f.place-1] || ''} ${esc(f.name)} <span class="muted">${fmtS(f.timeMs)}</span></li>`).join('')}</ol>`;
+    } else if (race.last) {
+      $('race').innerHTML = `<span class="muted">Última corrida:</span> <b>${esc(race.last.title)}</b> — ${race.last.finishers.length} terminaram` +
+        `<ol>${race.last.finishers.slice(0, 10).map((f) => `<li>${['🥇','🥈','🥉'][f.place-1] || ''} ${esc(f.name)} <span class="muted">${fmtS(f.timeMs)}</span></li>`).join('')}</ol>`;
+    } else {
+      $('race').innerHTML = '<span class="muted">Nenhuma corrida ainda.</span>';
+    }
+
+    // ---- quem precisa de ajuda
+    const att = ins.online
+      .map((o) => ({ ...o, score: (o.stuck ? 3 : 0) + (o.wrongNow >= 2 ? 2 : 0) + (o.guessesNow ? 1 : 0) + (o.idleMs > 10 * 60000 ? 2 : 0) }))
+      .filter((o) => o.score > 0)
+      .sort((a, b) => b.score - a.score);
+    $('attention').innerHTML = att.length ? att.map((o) => `<div>
+        <b>${esc(o.name)}</b> <span class="muted">${esc(o.where)}</span><br>
+        ${o.stuck ? '<span class="warn">❓ travado / pediu ajuda</span> ' : ''}
+        ${o.wrongNow ? `<span class="bad">${o.wrongNow} erro(s) neste desafio</span> ` : ''}
+        ${o.guessesNow ? `<span class="warn">🎲 ${o.guessesNow} chute(s)</span> ` : ''}
+        ${o.idleMs > 10 * 60000 ? `<span class="muted">⏳ sem avançar há ${Math.floor(o.idleMs / 60000)} min</span>` : ''}
+      </div>`).join('') : '<span class="muted">Ninguém travado agora. 👍</span>';
+
+    // ---- desafios mais difíceis
+    const st = ins.stations.filter((x) => x.solvedBy || x.starts || x.wrong).sort((a, b) => b.avgAttempts - a.avgAttempts || b.wrong - a.wrong);
+    $('insights').innerHTML = st.length ? `<tr><th>Desafio</th><th>Dificuldade</th><th>Concluíram</th><th>Tent. médias</th><th>Tempo médio</th><th>Erros</th><th>🎲</th><th>Desist.</th><th>🤝</th></tr>` +
+      st.map((x) => `<tr>
+        <td title="Módulo ${x.module}: ${esc(x.moduleName)}">${x.emoji} ${esc(x.title)}</td>
+        <td><span class="bar" style="width:${Math.min(100, Math.max(6, (x.avgAttempts - 1) * 40 + (x.solvedBy ? 0 : 50)))}px"></span></td>
+        <td>${x.solvedBy}</td><td>${x.avgAttempts ? x.avgAttempts.toFixed(1) : '-'}</td><td>${x.avgTimeMs ? fmtS(x.avgTimeMs) : '-'}</td>
+        <td>${x.wrong}</td><td>${x.guesses}</td><td>${x.quits}</td><td>${Math.round(x.helpedPct * 100)}%</td>
+      </tr>`).join('') : '<tr><td class="muted">Ainda sem dados: aparecem conforme a turma joga.</td></tr>';
 
     $('teams').innerHTML = Object.entries(data.teamTotals).map(([t, xp]) =>
       `<div class="row" style="margin:4px 0"><span class="team" style="background:${TEAM_COLORS[t]}">${t}</span> ${xp} XP</div>`).join('');

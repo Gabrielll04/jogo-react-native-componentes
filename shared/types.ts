@@ -60,6 +60,8 @@ export interface PublicPlayer {
   emote: string | null;
   /** em um duelo agora */
   dueling?: boolean;
+  /** cosméticos equipados (ids de shared/cosmetics.ts) */
+  look?: Partial<Record<'hat' | 'trail' | 'tag' | 'title', string>>;
 }
 
 export interface CompletionRecord {
@@ -67,6 +69,10 @@ export interface CompletionRecord {
   attempts: number;
   timeMs: number;
   helped: boolean;
+  /** respostas erradas dadas rápido demais (chutes) — saves antigos não têm */
+  guesses?: number;
+  /** tempo extra de penalidade (erros e chutes), já somado em timeMs */
+  penaltyMs?: number;
 }
 
 /** Progresso salvo de um jogador (servidor -> próprio jogador e painel). */
@@ -88,6 +94,14 @@ export interface PlayerProgress {
   totalCorrect: number;
   duelsWon: number;
   duelsLost: number;
+  /** respostas que pareceram chute (erro rápido demais) */
+  totalGuesses: number;
+  /** cosméticos comprados e equipados */
+  owned: string[];
+  equipped: Partial<Record<'hat' | 'trail' | 'tag' | 'title', string>>;
+  racesWon: number;
+  /** bloqueado pelo professor */
+  banned?: boolean;
   createdAt: number;
   lastSeen: number;
 }
@@ -191,6 +205,15 @@ export interface AnswerResult {
   next?: ChallengeView;
   /** código "por trás da tela", mostrado depois do acerto */
   reveal?: string;
+  /** espera obrigatória antes da próxima tentativa (ms) */
+  cooldownMs?: number;
+  /** o erro foi rápido demais: pareceu chute */
+  guess?: boolean;
+  /** tempo extra acumulado por erros/chutes neste desafio (ms) */
+  penaltyMs?: number;
+  /** ao concluir: tempo real gasto e total de chutes */
+  timeMs?: number;
+  guesses?: number;
 }
 
 export interface HelpRequest {
@@ -236,6 +259,36 @@ export interface DuelEnd {
   xp: number;
   timeMs: number;
   solution: string;
+}
+
+// ---------- Corrida da turma ----------
+
+export interface RaceStart {
+  raceId: string;
+  taskId: string;
+  mode: 'blocks' | 'code';
+  /** ms até começar */
+  startsIn: number;
+  /** ms até acabar (contando do início) */
+  maxMs: number;
+}
+
+export interface RaceRankEntry {
+  playerId: string;
+  name: string;
+  color: string;
+  timeMs: number;
+  place: number;
+  xp: number;
+  coins: number;
+}
+
+export interface RaceState {
+  raceId: string;
+  finishers: RaceRankEntry[];
+  /** quantos estão participando (no mapa) */
+  players: number;
+  ended: boolean;
 }
 
 export type SoundName =

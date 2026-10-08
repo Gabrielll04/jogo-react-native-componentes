@@ -222,12 +222,31 @@ Aposta, tempos e XP: constantes no topo de `shared/duels.ts` (`DUEL_STAKE`, `DUE
 
 ## 7. Regras e recompensas
 
-- `shared/events.ts` → `RULES`: moedas iniciais, custo de dica, erros até ficar "travado", XP por nível…
+- `shared/events.ts` → `RULES`: moedas iniciais, custo de dica, erros até ficar "travado", XP por nível,
+  e as regras contra o chute (`GUESS_FAST_MS`, `GUESS_PENALTY_MS`, `WRONG_COOLDOWN_MS`…)
 - `server/src/game.ts` → `XP_BY_TYPE` e `completeStation()`: XP por tipo, desconto por erro/dica,
   bônus de cooperação.
 - `server/src/state.ts` → `ACHIEVEMENTS`: conquistas.
 
-## 8. Sons
+## 8. Loja de cosméticos 🛍️
+
+Itens em `shared/cosmetics.ts` (`COSMETICS`). Cada item tem `kind` (`hat`, `trail`, `tag`, `title`),
+`value` (emoji do chapéu/rastro, cor da plaquinha ou texto do título), `price` e, se quiser, `requires`
+(`{ achievement }`, `{ modules }` ou `{ level }` + `label`). O servidor confere tudo em `server/src/shop.ts`.
+Prefira emojis antigos (Windows 10 não mostra os mais novos).
+
+## 9. Laboratório livre 🧪
+
+`client/src/ui/LabOverlay.tsx`: modelos (`TEMPLATES`), botões de inserir (`SNIPPETS`) e ideias (`IDEAS`).
+O código é lido por `shared/lab.ts` (JSX + `style={{...}}` + `StyleSheet.create`). Componentes desenhados:
+`client/src/ui/uiTree.tsx`.
+
+## 10. Corrida da turma 🏁
+
+Usa as mesmas tarefas dos duelos (`DUEL_TASKS` em `shared/duels.ts`). Prêmios e duração no topo de
+`server/src/race.ts`.
+
+## 11. Sons
 
 `client/src/audio/sound.ts` tem a função central `playSound(nome)`. Os arquivos ficam em
 `client/public/sounds/`:

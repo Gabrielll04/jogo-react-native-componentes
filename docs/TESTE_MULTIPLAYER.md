@@ -12,6 +12,7 @@ Leva uns 10 minutos e evita surpresas.
    > Duas abas comuns do mesmo navegador também funcionam (cada aba vira um jogador
    > diferente), mas janelas separadas deixam mais fácil ver as duas ao mesmo tempo.
 3. Janela A: nome **Ana**, entre no lobby. Janela B: nome **Beto**, entre no lobby.
+   (O nome é a "conta" do aluno: usar o mesmo nome depois volta ao mesmo progresso.)
    ✅ Os dois aparecem na lista "Jogadores conectados" das duas janelas.
 4. Clique em um emote (👋) em A. ✅ Aparece ao lado da Ana na janela B.
 5. Clique **Entrar no mundo** nas duas. Mova a Ana com WASD/setas.
@@ -63,7 +64,24 @@ Leva uns 10 minutos e evita surpresas.
    ✅ Vencedor: +moedas do outro e +20 XP; perdedor: -moedas (nunca abaixo de 0).
 4. Repita com **⌨️ Código**: digite o componente pedido; o checklist e o celular atualizam enquanto digita.
 
-## Teste 7 — dois computadores (o teste que importa)
+## Teste 7 — progresso pelo nome, loja e laboratório
+
+1. Feche a janela da Ana e abra outra (pode ser anônima). Digite **ana** no nome.
+   ✅ Aparece "👋 Bem-vindo(a) de volta, Ana!" com o nível/XP; ao entrar, o progresso está lá.
+2. Na janela do Beto, tente entrar com o nome **Ana** enquanto ela está jogando.
+   ✅ "Já tem alguém jogando como Ana agora".
+3. No mapa, aperte **K** (loja), compre um chapéu. ✅ O chapéu aparece na cabeça dela também na janela do Beto.
+4. Aperte **L** (laboratório), escolha "↔️ Lado a lado" e troque `row` por `column`. ✅ O celular muda na hora.
+5. Num terminal, responda errado muito rápido. ✅ "🎲 Isso pareceu um chute!" e o botão "🧠 Pense… Xs".
+
+## Teste 8 — corrida e painel
+
+1. Com os dois no mapa, no painel clique **🧱 Iniciar corrida de Blocos**. ✅ Contagem 5 s nos dois e a mesma tela.
+2. Termine em uma janela. ✅ Ranking ao vivo nas duas e no painel; quando os dois terminam, a corrida acaba.
+3. No painel, ✏️ renomeie o Beto. ✅ Ele recebe o aviso com o nome novo. 🚫 bloqueie: ✅ ele sai na hora
+   e não consegue entrar de novo até ✅ desbloquear.
+
+## Teste 9 — dois computadores (o teste que importa)
 
 1. No PC do professor: `npm start` e anote o IP mostrado.
 2. Em outro PC da mesma rede: abra `http://IP:3000/health`. Deve aparecer `{"ok":true...}`.
@@ -73,5 +91,5 @@ Leva uns 10 minutos e evita surpresas.
 ## Resetar depois dos testes
 
 No painel, **Resetar progresso** apaga todos os jogadores e tranca os módulos 2–6
-(o módulo 1 começa liberado). Também é possível apagar `server/data/save.json` com o
+(o módulo 1 começa liberado) — antes, uma cópia vai para `server/data/backups/`. Também é possível apagar `server/data/save.json` com o
 servidor parado.

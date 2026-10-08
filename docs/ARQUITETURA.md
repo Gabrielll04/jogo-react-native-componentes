@@ -91,7 +91,14 @@ ou desconectar durante o duelo = derrota; convite expira em 30 s; duelo expira e
 | `duel_feedback` / `duel_opponent` | S→C | erro do próprio aluno / tentativas do adversário |
 | `duel_forfeit` | C→S | `{ duelId }` |
 | `duel_end` | S→C | resultado, moedas (+/-), XP, solução |
-| `feed` | S→todos | `{ text }` acontecimentos (duelos) |
+| `feed` | S→todos | `{ text }` acontecimentos (duelos, corrida) |
+| `login_error` | S→C | `{ text }` nome em uso, nome curto, aluno bloqueado/apagado |
+| `shop_buy` / `shop_equip` | C→S | `{ itemId }` / `{ kind, itemId \| null }` |
+| `lab_built` | C→S | `{ nodes }` (conquista Cientista) |
+| `race_start` | S→C | `{ raceId, taskId, mode, startsIn, maxMs }` |
+| `race_submit` | C→S | `{ raceId, answer }` |
+| `race_feedback` | S→C | `{ msg, cooldownMs }` |
+| `race_state` | S→mundo | `{ raceId, finishers, players, ended }` (ranking ao vivo) |
 | `player_disconnect` | S→todos | `{ id }` |
 
 ## Endpoints REST
@@ -108,6 +115,12 @@ ou desconectar durante o duelo = derrota; convite expira em 30 s; duelo expira e
 | GET | `/admin/progress` | ✔ | Progresso de todos |
 | GET | `/admin/logs` | ✔ | Últimos logs |
 | POST | `/admin/announce` | ✔ | `{ text }` anúncio para todos |
+| GET | `/profile?name=` | — | Perfil salvo com esse nome (tela de entrada: "Bem-vindo de volta") |
+| POST | `/admin/players/:id/rename` | ✔ | `{ name }` (recusa nome repetido) |
+| POST | `/admin/players/:id/ban` | ✔ | `{ banned }` bloqueia/desbloqueia (desconecta na hora) |
+| DELETE | `/admin/players/:id` | ✔ | Apaga o perfil |
+| GET | `/admin/insights` | ✔ | Estatísticas por desafio + alunos online (quem precisa de ajuda) |
+| GET | `/admin/race` · POST `/admin/race/start` · `/admin/race/stop` | ✔ | Corrida da turma (`{ mode: 'blocks' \| 'code' }`) |
 | POST | `/admin/reset` | ✔ | Apaga o progresso |
 | GET | `/admin/export.json` · `/admin/export.csv` | ✔ | Exporta progresso |
 
@@ -115,9 +128,16 @@ Auth = cabeçalho `x-admin-senha: <ADMIN_SENHA>` (ou `?senha=` nos downloads).
 
 ## Persistência
 
-`server/data/save.json` guarda módulos liberados e o progresso de cada jogador
-(gravação com *debounce* de 2 s e ao encerrar com Ctrl+C). O id do jogador fica no
-navegador (`sessionStorage`/`localStorage`), então recarregar a página mantém o progresso.
+`server/data/save.json` guarda módulos liberados, o progresso de cada jogador e as estatísticas
+por desafio (gravação com *debounce* de 2 s, em arquivo temporário + rename, e ao encerrar com Ctrl+C).
+Ao iniciar, o servidor faz um backup em `server/data/backups/` (20 mais recentes) e completa os
+campos que saves antigos não têm (`state.load()`), então versões novas abrem saves antigos.
+
+**Identidade = nome.** `player_connect` procura um perfil com o mesmo nome (`nameKey`: sem acentos,
+minúsculo, espaços normalizados). Achou → usa esse perfil; não achou → cria um novo. Se o perfil já
+está online, só entra quem manda o mesmo `playerId` guardado no navegador (mesma pessoa em outra aba:
+a conexão antiga é substituída); os demais recebem `login_error`. Saves antigos com nomes repetidos:
+vale o perfil com mais XP, e o painel marca ⚠️ para o professor renomear.
 
 ## Anti-trapaça e anti-decoreba (MVP)
 
@@ -125,6 +145,10 @@ navegador (`sessionStorage`/`localStorage`), então recarregar a página mantém
 - Árvores JSX enviadas no "Monte a tela" têm tamanho limitado (40 nós, 8 níveis).
 - Variantes sorteadas, alternativas embaralhadas a cada envio, chefe troca de pergunta ao errar.
 - Rejogar uma estação concluída dá só 5 XP (treino), evitando "farmar".
+- **Chute:** errar antes de `RULES.GUESS_FAST_MS` (contado desde que a pergunta apareceu ou desde o fim
+  da espera anterior) soma `GUESS_PENALTY_MS` ao tempo, tira mais XP e aumenta a espera. Toda resposta
+  errada gera uma espera crescente (`WRONG_COOLDOWN_MS`) validada no servidor (`inst.lockUntil`).
+  Duelos e corrida usam `RACE_COOLDOWN_MS`.
 - Ajudado ganha 80% do XP; dicas custam moedas; chefe é individual.
 - Limitações conhecidas: a colisão de portas é feita no cliente (o servidor só valida ao
   iniciar desafios); a autenticação do painel é uma senha simples.

@@ -10,6 +10,7 @@
 import Phaser from 'phaser';
 import { buildingAt, isSolid, MAP_H, MAP_W, Tile, TILE, type WorldMap } from '@shared/map';
 import { findStation, MODULES } from '@shared/modules';
+import { cosmetic, type Look } from '@shared/cosmetics';
 import type { ChallengeType, ModuleState, PlayerProgress, PublicPlayer } from '@shared/types';
 import { actions } from '../net/socket';
 import { getState, subscribe } from '../state/store';
@@ -38,6 +39,13 @@ interface Avatar {
   bubble: Phaser.GameObjects.Text;
   mini: Phaser.GameObjects.Arc;
   bubbleUntil: number;
+  /** cosméticos: chapéu (emoji na cabeça), título (embaixo) e rastro ao andar */
+  hat: Phaser.GameObjects.Text;
+  title: Phaser.GameObjects.Text;
+  trail: string | null;
+  lookKey: string;
+  nextTrail: number;
+  isMe: boolean;
   tx: number;
   ty: number;
   dir: Dir;
@@ -88,6 +96,7 @@ export class WorldScene extends Phaser.Scene {
   private lastProgress: PlayerProgress | null = null;
   private lastPlayers: PublicPlayer[] | null = null;
   private goal: { x: number; y: number } | null = null;
+  private trailCount = 0;
 
   constructor() {
     super('world');
@@ -104,6 +113,7 @@ export class WorldScene extends Phaser.Scene {
     const s = getState();
     const mine = s.players.find((p) => p.id === s.playerId);
     this.me = this.makeAvatar(s.progress?.name ?? 'Eu', s.progress?.color ?? '#fff', true);
+    this.applyLook(this.me, s.progress?.equipped);
     const sx = this.world.spawn.x + Phaser.Math.Between(-32, 32);
     this.me.root.setPosition(mine?.inWorld && mine.x ? mine.x : sx, mine?.inWorld && mine.y ? mine.y : this.world.spawn.y);
 
@@ -421,14 +431,77 @@ export class WorldScene extends Phaser.Scene {
       .text(0, -60, '', { fontSize: '20px', backgroundColor: '#ffffffee', padding: { x: 4, y: 2 }, resolution: 3 })
       .setOrigin(0.5)
       .setVisible(false);
-    const root = this.add.container(0, 0, [shadow, sprite, label, status, bubble]).setDepth(isMe ? 21 : 20);
+    const hat = this.add.text(0, -21, '', { fontSize: '17px', resolution: 3 }).setOrigin(0.5, 1);
+    const title = this.add
+      .text(0, 24, '', { fontFamily: FONT, fontStyle: '900', fontSize: '10px', color: '#ffd54a', stroke: '#000000', strokeThickness: 3, resolution: 3 })
+      .setOrigin(0.5, 0);
+    const root = this.add.container(0, 0, [shadow, sprite, hat, title, label, status, bubble]).setDepth(isMe ? 21 : 20);
     // ponto no minimapa
     const mini = this.add.circle(0, 0, isMe ? 0 : 26, hex(color)).setStrokeStyle(8, 0x000000).setDepth(48);
     this.mainOnly.push(root);
     this.miniOnly.push(mini);
     this.minimap?.ignore(root);
     this.cameras.main.ignore(mini);
-    return { root, sprite, label, status, bubble, mini, bubbleUntil: 0, tx: 0, ty: 0, dir: 'down', moving: false };
+    return {
+      root,
+      sprite,
+      label,
+      status,
+      bubble,
+      mini,
+      bubbleUntil: 0,
+      hat,
+      title,
+      trail: null,
+      lookKey: '',
+      nextTrail: 0,
+      isMe,
+      tx: 0,
+      ty: 0,
+      dir: 'down',
+      moving: false,
+    };
+  }
+
+  /** aplica os cosméticos comprados na loja */
+  private applyLook(a: Avatar, look: Look | undefined) {
+    const key = JSON.stringify(look ?? {});
+    if (key === a.lookKey) return;
+    a.lookKey = key;
+    const hat = cosmetic(look?.hat);
+    const tag = cosmetic(look?.tag);
+    a.hat.setText(hat?.value ?? '');
+    a.title.setText(cosmetic(look?.title)?.value ?? '');
+    a.trail = cosmetic(look?.trail)?.value ?? null;
+    a.label.setBackgroundColor(tag ? `${tag.value}ee` : a.isMe ? '#1b5e20dd' : '#000000aa');
+    // com chapéu, o nome e o balão de emote sobem um pouco
+    a.label.setY(hat ? -50 : -36);
+    a.status.setY(hat ? -42 : -28);
+    a.bubble.setY(hat ? -74 : -60);
+  }
+
+  /** rastro: emoji que aparece atrás do personagem e some */
+  private dropTrail(a: Avatar) {
+    if (!a.trail || this.time.now < a.nextTrail || this.trailCount > 160) return;
+    a.nextTrail = this.time.now + 120;
+    const t = this.add
+      .text(a.root.x + Phaser.Math.Between(-6, 6), a.root.y + 8, a.trail, { fontSize: '12px', resolution: 2 })
+      .setOrigin(0.5)
+      .setDepth(6)
+      .setAlpha(0.9);
+    this.minimap.ignore(t);
+    this.trailCount++;
+    this.tweens.add({
+      targets: t,
+      alpha: 0,
+      scale: 0.4,
+      y: t.y - 6,
+      duration: 750,
+      onComplete: () => {
+        t.destroy();
+        this.trailCount--;
+      },
+    });
   }
 
   private animate(a: Avatar, dx: number, dy: number) {
@@ -447,6 +520,7 @@ export class WorldScene extends Phaser.Scene {
       if (!a) {
         const info = getState().players.find((p) => p.id === id);
         a = this.makeAvatar(info?.name ?? '???', info?.color ?? '#999', false);
+        this.applyLook(a, info?.look);
         a.root.setPosition(x, y);
         this.others.set(id, a);
       }
@@ -486,6 +560,7 @@ export class WorldScene extends Phaser.Scene {
         if (p.id === s.playerId) {
           this.me.status.setText(p.dueling ? '⚔️' : p.stuck ? '❓' : '');
           this.me.label.setText(`${p.name} · nv${p.level}`);
+          this.applyLook(this.me, p.look);
           continue;
         }
         if (!p.inWorld) {
@@ -505,6 +580,7 @@ export class WorldScene extends Phaser.Scene {
         if (a) {
           a.label.setText(`${p.name} · nv${p.level}`);
           a.status.setText(p.dueling ? '⚔️' : p.stuck ? '❓' : p.stationId ? '📝' : '');
+          this.applyLook(a, p.look);
         }
       }
       for (const id of [...this.others.keys()]) if (!present.has(id)) this.removeOther(id);
@@ -589,6 +665,7 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     this.animate(this.me, vx, vy);
+    if (vx || vy) this.dropTrail(this.me);
     this.miniMe.setPosition(this.me.root.x, this.me.root.y);
 
     // interpolação suave dos outros jogadores
@@ -605,6 +682,8 @@ export class WorldScene extends Phaser.Scene {
       a.root.setDepth(inside ? 7 : 20);
       a.label.setVisible(!inside); // sem nomes empilhados em cima dos Mestres
       a.status.setVisible(!inside);
+      a.title.setVisible(!inside);
+      if (!inside && Math.abs(dx) + Math.abs(dy) > 0.3) this.dropTrail(a);
     }
     for (const a of [this.me, ...this.others.values()]) {
       if (a.bubble.visible && this.time.now > a.bubbleUntil) a.bubble.setVisible(false);

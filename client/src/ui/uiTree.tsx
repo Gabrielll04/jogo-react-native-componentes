@@ -3,7 +3,7 @@
  * Usado para a tela-objetivo e para a tela que o aluno monta no "Monte a tela".
  */
 import { useState, type ReactNode } from 'react';
-import { Button, Image, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Button, Image, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import type { UINode } from '@shared/types';
 
 type Styles = Record<string, Record<string, string | number>>;
@@ -36,13 +36,15 @@ export function RenderNode({ node, styles, path = 'r' }: { node: UINode; styles:
     case 'Text':
       return <Text style={st}>{node.text}</Text>;
     case 'Image':
-      return <Image source={{ uri: '/img/avatar.svg' }} style={st ?? { width: 60, height: 60 }} />;
+      return <Image source={{ uri: '/img/avatar.svg' }} style={[{ width: 60, height: 60 }, st]} />;
     case 'Button':
       return <Button title={node.text ?? 'Botão'} onPress={() => {}} />;
     case 'TextInput':
       return <TextInput placeholder={node.text} style={st ?? { borderWidth: 1, borderColor: '#999', padding: 6 }} />;
     case 'Switch':
       return <LiveSwitch />;
+    case 'ActivityIndicator':
+      return <ActivityIndicator size="large" color={typeof st?.color === 'string' ? st.color : '#2196f3'} style={st} />;
     case '__loose_text__':
       // texto solto fora de <Text>: o React Native mostra a "tela vermelha"
       return (
@@ -52,7 +54,7 @@ export function RenderNode({ node, styles, path = 'r' }: { node: UINode; styles:
         </View>
       );
     default:
-      return <Text style={{ color: 'red' }}>?{node.type}</Text>;
+      return <Text style={{ color: '#c62828', fontSize: 11 }}>{`<${node.type}> não existe aqui (confira o nome e as maiúsculas)`}</Text>;
   }
 }
 

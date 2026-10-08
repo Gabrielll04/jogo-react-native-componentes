@@ -10,7 +10,7 @@
  * mostrados ao aluno de qualquer forma; quem confere a resposta é o servidor.
  * Para criar tarefas novas basta acrescentar itens em DUEL_TASKS.
  */
-import { findNode, parseJsx, type ParsedNode } from './jsx';
+import { compareTree, countNodes, findNode, parseJsx, type ParsedNode } from './jsx';
 import type { UIBlock, UINode } from './types';
 
 export type DuelMode = 'blocks' | 'code';
@@ -241,6 +241,16 @@ export function checkCode(task: CodeTask, code: string) {
     }
   });
   return { passed, ok: passed.every(Boolean), tree: parsed.tree, error: parsed.error };
+}
+
+/** Corrige uma resposta (blocos: árvore · código: texto). null = certo; senão, a dica do que falta. */
+export function judgeTask(task: DuelTask, answer: unknown): string | null {
+  if (task.mode === 'blocks') return countNodes(answer) > 40 ? 'Tela grande demais!' : compareTree(answer, task.target);
+  const code = typeof answer === 'string' ? answer.slice(0, 4000) : '';
+  const r = checkCode(task, code);
+  if (r.ok) return null;
+  const missing = task.checks.filter((_, i) => !r.passed[i]).map((c) => c.label);
+  return r.error ? r.error : `Ainda falta: ${missing.join(' · ')}`;
 }
 
 export const MODE_LABEL: Record<DuelMode, string> = { blocks: '🧱 Blocos', code: '⌨️ Código' };

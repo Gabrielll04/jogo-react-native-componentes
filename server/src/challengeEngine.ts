@@ -32,6 +32,16 @@ export interface Instance {
   hintsShown: string[];
   helped: boolean;
   helperIds: string[];
+  /** quando a pergunta atual apareceu (para medir o "tempo pensando") */
+  shownAt: number;
+  /** não aceita respostas antes disto (espera depois de errar) */
+  lockUntil: number;
+  /** erros seguidos (a espera cresce) */
+  streak: number;
+  /** erros rápidos demais = chutes */
+  guesses: number;
+  /** tempo extra somado ao tempo final */
+  penaltyMs: number;
   round: Round;
   boss?: BossState & { pool: (QuizDef | BugDef)[] };
 }
@@ -145,6 +155,11 @@ export function createInstance(playerId: string, stationId: string): Instance | 
     hintsShown: [] as string[],
     helped: false,
     helperIds: [] as string[],
+    shownAt: Date.now(),
+    lockUntil: 0,
+    streak: 0,
+    guesses: 0,
+    penaltyMs: 0,
   };
 
   switch (content.type) {

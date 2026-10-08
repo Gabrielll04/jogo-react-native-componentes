@@ -29,6 +29,22 @@ npm start
 
 Se o cliente já estiver compilado e você só quer subir o servidor: `npm run serve`.
 
+## Atualizar para uma versão nova (sem perder o progresso)
+
+```bash
+# 1. pare o servidor com Ctrl + C (ele salva tudo antes de sair)
+git pull
+npm install
+npm start
+```
+
+- O progresso fica em `server/data/save.json`, que **não faz parte do git**: o `git pull` não mexe nele.
+- Versões novas leem saves de versões antigas (os campos novos são criados sozinhos).
+- A cada início do servidor é feita uma cópia em `server/data/backups/save-AAAA-MM-DD-hh-mm-ss.json`
+  (ficam as 20 mais recentes). Para voltar a um backup: pare o servidor e copie o arquivo por cima
+  de `server/data/save.json`.
+- Os alunos entram pelo **nome**: com o mesmo nome eles voltam ao próprio perfil, em qualquer computador.
+
 ### Variáveis de ambiente
 
 | Variável | Padrão | Uso |

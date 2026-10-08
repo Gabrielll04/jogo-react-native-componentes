@@ -9,7 +9,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Socket } from 'socket.io';
 import {
-  checkCode,
   DUEL_COUNTDOWN_MS,
   DUEL_INVITE_MS,
   DUEL_MAX_MS,
@@ -17,13 +16,14 @@ import {
   DUEL_STAKE,
   DUEL_WIN_XP,
   duelTask,
+  judgeTask,
   MODE_LABEL,
   randomDuelTask,
   type DuelMode,
 } from '../../shared/duels';
-import { EV } from '../../shared/events';
+import { EV, RULES } from '../../shared/events';
 import { buildingAt, buildWorld } from '../../shared/map';
-import { compareTree, countNodes, treeToCode } from '../../shared/jsx';
+import { treeToCode } from '../../shared/jsx';
 import type { DuelEnd, DuelInvite, DuelStart } from '../../shared/types';
 import { afterProgressChange, award, broadcastLobby, findOnlineByPlayer, getIo, notice, sound, type OnlinePlayer } from './game';
 import { state } from './state';
@@ -37,6 +37,9 @@ interface Duel {
   taskId: string;
   startsAt: number;
   attempts: Record<string, number>;
+  /** erros seguidos e espera de cada jogador */
+  streak: Record<string, number>;
+  lockUntil: Record<string, number>;
   timer: NodeJS.Timeout | null;
 }
 
@@ -77,6 +80,8 @@ function start(d: Duel) {
   d.taskId = randomDuelTask(d.mode).id;
   d.startsAt = Date.now() + DUEL_COUNTDOWN_MS;
   d.attempts = { [d.a]: 0, [d.b]: 0 };
+  d.streak = {};
+  d.lockUntil = {};
   if (d.timer) clearTimeout(d.timer);
   d.timer = setTimeout(() => finish(d, null, 'timeout'), DUEL_COUNTDOWN_MS + DUEL_MAX_MS);
   for (const o of [a, b]) {
@@ -204,6 +209,8 @@ export function registerDuelHandlers(socket: Socket, getMe: () => OnlinePlayer |
       taskId: '',
       startsAt: 0,
       attempts: {},
+      streak: {},
+      lockUntil: {},
       timer: null,
     };
     d.timer = setTimeout(() => cancelPending(d, `⌛ ${nameOf(d.b)} não respondeu ao duelo.`), DUEL_INVITE_MS);
@@ -237,23 +244,18 @@ export function registerDuelHandlers(socket: Socket, getMe: () => OnlinePlayer |
     const d = duels.get(String(data?.duelId ?? ''));
     if (!me || !d || d.status !== 'active' || (d.a !== me.playerId && d.b !== me.playerId)) return;
     if (Date.now() < d.startsAt) return; // ainda na contagem
+    // espera depois de errar (cresce a cada erro seguido): mandar combinações aleatórias não compensa
+    const now = Date.now();
+    if (now < (d.lockUntil[me.playerId] ?? 0)) return;
     const task = duelTask(d.taskId)!;
     d.attempts[me.playerId] = (d.attempts[me.playerId] ?? 0) + 1;
-
-    let wrong: string | null = null;
-    if (task.mode === 'blocks') {
-      wrong = countNodes(data.answer) > 40 ? 'Tela grande demais!' : compareTree(data.answer, task.target);
-    } else {
-      const code = typeof data.answer === 'string' ? data.answer.slice(0, 4000) : '';
-      const r = checkCode(task, code);
-      if (!r.ok) {
-        const missing = task.checks.filter((_, i) => !r.passed[i]).map((c) => c.label);
-        wrong = r.error ? `${r.error}` : `Ainda falta: ${missing.join(' · ')}`;
-      }
-    }
-
+    const wrong = judgeTask(task, data.answer);
     if (wrong) {
-      socket.emit(EV.DUEL_FEEDBACK, { msg: wrong });
+      const n = (d.streak[me.playerId] = (d.streak[me.playerId] ?? 0) + 1);
+      const steps = RULES.RACE_COOLDOWN_MS;
+      const cooldownMs = steps[Math.min(n, steps.length) - 1];
+      d.lockUntil[me.playerId] = now + cooldownMs;
+      socket.emit(EV.DUEL_FEEDBACK, { msg: wrong, cooldownMs });
       sound(socket, 'wrong');
       const opp = findOnlineByPlayer(other(d, me.playerId));
       if (opp) io.to(opp.socketId).emit(EV.DUEL_OPPONENT, { attempts: d.attempts[me.playerId] });

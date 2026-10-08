@@ -13,6 +13,8 @@ import type {
   ModuleState,
   PlayerProgress,
   PublicPlayer,
+  RaceStart,
+  RaceState,
 } from '@shared/types';
 
 export type Screen = 'connect' | 'lobby' | 'world';
@@ -46,8 +48,16 @@ export interface GameStore {
   /** duelo em andamento (startAt = hora local do "JÁ!") */
   duel: (DuelStart & { startAt: number }) | null;
   duelEnd: DuelEnd | null;
-  duelFeedback: { msg: string; at: number } | null;
+  duelFeedback: { msg: string; at: number; until: number } | null;
   duelOppAttempts: number;
+  /** erro ao entrar (nome em uso, aluno bloqueado…) */
+  loginError: string | null;
+  /** corrida da turma (startAt = hora local da largada) */
+  race: (RaceStart & { startAt: number; endAt: number }) | null;
+  raceState: RaceState | null;
+  raceFeedback: { msg: string; at: number; until: number } | null;
+  /** janela da corrida aberta (o aluno pode minimizar) */
+  raceOpen: boolean;
 }
 
 let state: GameStore = {
@@ -72,6 +82,11 @@ let state: GameStore = {
   duelEnd: null,
   duelFeedback: null,
   duelOppAttempts: 0,
+  loginError: null,
+  race: null,
+  raceState: null,
+  raceFeedback: null,
+  raceOpen: false,
 };
 
 const listeners = new Set<() => void>();

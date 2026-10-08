@@ -15,9 +15,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import qrcode from 'qrcode-terminal';
 import { Server } from 'socket.io';
-import { MODULES } from '../../shared/modules';
+import { nameKey } from '../../shared/events';
+import { levelFromXp, MODULES } from '../../shared/modules';
 import { validateContent } from './challengeEngine';
-import { announce, onlinePlayers, resetAll, setModuleLock, setupGame } from './game';
+import { announce, kickPlayer, onlineDetails, onlinePlayers, playerRenamed, resetAll, setModuleLock, setupGame } from './game';
+import { raceInfo, startRace, stopRace } from './race';
 import { state } from './state';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -52,6 +54,26 @@ app.get('/modules', (_req, res) => {
       unlocked: state.isUnlocked(m.id),
     }))
   );
+});
+
+/** Tela de entrada: "Bem-vindo de volta!" quando o nome já tem progresso salvo neste servidor. */
+app.get('/profile', (req, res) => {
+  const name = String(req.query.name ?? '').slice(0, 32);
+  const p = nameKey(name).length >= 2 ? state.findByName(name) : null;
+  if (!p) {
+    res.json({ found: false });
+    return;
+  }
+  res.json({
+    found: true,
+    name: p.name,
+    level: levelFromXp(p.xp),
+    xp: p.xp,
+    color: p.color,
+    team: p.team,
+    banned: Boolean(p.banned),
+    online: onlinePlayers().some((o) => o.id === p.id),
+  });
 });
 
 // ---------------------------------------------------------------- painel do professor
@@ -100,6 +122,86 @@ admin.get('/progress', (_req, res) => {
   });
 });
 
+// ---- alunos: renomear, bloquear, apagar
+admin.post('/players/:id/rename', (req, res) => {
+  const p = state.progress[req.params.id];
+  const name = String(req.body?.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 16);
+  if (!p) return void res.status(404).json({ ok: false, error: 'Aluno não encontrado' });
+  if (nameKey(name).length < 2) return void res.status(400).json({ ok: false, error: 'Nome muito curto' });
+  const clash = state.findByName(name, p.id);
+  if (clash) return void res.status(409).json({ ok: false, error: `Já existe um aluno chamado "${clash.name}"` });
+  const old = p.name;
+  p.name = name;
+  state.log(`✏️ Professor renomeou "${old}" para "${name}"`);
+  state.save();
+  playerRenamed(p.id);
+  res.json({ ok: true });
+});
+
+admin.post('/players/:id/ban', (req, res) => {
+  const p = state.progress[req.params.id];
+  if (!p) return void res.status(404).json({ ok: false, error: 'Aluno não encontrado' });
+  p.banned = Boolean(req.body?.banned);
+  state.log(`${p.banned ? '🚫 Professor bloqueou' : '✅ Professor desbloqueou'} ${p.name}`);
+  state.save();
+  if (p.banned) kickPlayer(p.id, '🚫 Você foi bloqueado(a) pelo professor.');
+  res.json({ ok: true });
+});
+
+admin.delete('/players/:id', (req, res) => {
+  const p = state.progress[req.params.id];
+  if (!p) return void res.status(404).json({ ok: false, error: 'Aluno não encontrado' });
+  kickPlayer(p.id, 'O professor apagou este perfil. Entre de novo para começar do zero.');
+  delete state.progress[p.id];
+  state.log(`🗑️ Professor apagou o perfil de ${p.name} (${p.xp} XP)`);
+  state.save();
+  res.json({ ok: true });
+});
+
+// ---- painel de dificuldades: o que a turma mais erra e quem precisa de ajuda
+admin.get('/insights', (_req, res) => {
+  const players = Object.values(state.progress);
+  const stations = MODULES.flatMap((m) =>
+    m.stations.map((st) => {
+      const recs = players.map((p) => p.completed[st.id]).filter(Boolean);
+      const s = state.stats[st.id] ?? { starts: 0, wrong: 0, guesses: 0, solved: 0, quits: 0 };
+      const avg = (f: (r: (typeof recs)[number]) => number) => (recs.length ? recs.reduce((a, r) => a + f(r), 0) / recs.length : 0);
+      return {
+        id: st.id,
+        title: st.title,
+        emoji: st.emoji,
+        module: m.id,
+        moduleName: m.name,
+        solvedBy: recs.length,
+        avgAttempts: avg((r) => r.attempts),
+        avgTimeMs: avg((r) => r.timeMs),
+        helpedPct: recs.length ? recs.filter((r) => r.helped).length / recs.length : 0,
+        guesses: s.guesses,
+        wrong: s.wrong,
+        starts: s.starts,
+        quits: s.quits,
+      };
+    })
+  );
+  res.json({ stations, online: onlineDetails() });
+});
+
+// ---- corrida da turma
+admin.get('/race', (_req, res) => {
+  res.json(raceInfo());
+});
+
+admin.post('/race/start', (req, res) => {
+  const mode = req.body?.mode === 'code' ? 'code' : 'blocks';
+  const r = startRace(mode, req.body?.taskId ? String(req.body.taskId) : undefined);
+  res.status(r.ok ? 200 : 409).json(r);
+});
+
+admin.post('/race/stop', (_req, res) => {
+  stopRace(true);
+  res.json({ ok: true });
+});
+
 admin.get('/logs', (_req, res) => {
   res.json(state.logs.slice(-150).reverse());
 });
@@ -122,7 +224,7 @@ admin.get('/export.json', (_req, res) => {
 
 admin.get('/export.csv', (_req, res) => {
   const stations = MODULES.flatMap((m) => m.stations.map((s) => s.id));
-  const header = ['nome', 'equipe', 'xp', 'moedas', 'cooperacao', 'tentativas', 'acertos', 'licoes', 'duelos_vencidos', 'duelos_perdidos', 'modulos_concluidos', ...stations];
+  const header = ['nome', 'equipe', 'xp', 'moedas', 'cooperacao', 'tentativas', 'acertos', 'chutes', 'licoes', 'duelos_vencidos', 'duelos_perdidos', 'corridas_vencidas', 'bloqueado', 'modulos_concluidos', ...stations];
   const rows = Object.values(state.progress).map((p) => [
     p.name,
     p.team,
@@ -131,11 +233,17 @@ admin.get('/export.csv', (_req, res) => {
     p.coopPoints,
     p.totalAttempts,
     p.totalCorrect,
+    p.totalGuesses ?? 0,
     (p.learned ?? []).length,
     p.duelsWon ?? 0,
     p.duelsLost ?? 0,
+    p.racesWon ?? 0,
+    p.banned ? 'sim' : '',
     p.modulesCompleted.join(' '),
-    ...stations.map((s) => (p.completed[s] ? `ok (${p.completed[s].attempts}x${p.completed[s].helped ? ', ajuda' : ''})` : '')),
+    ...stations.map((s) => {
+      const c = p.completed[s];
+      return c ? `ok (${c.attempts}x${c.guesses ? `, ${c.guesses} chute(s)` : ''}${c.helped ? ', ajuda' : ''})` : '';
+    }),
   ]);
   const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');

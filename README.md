@@ -39,6 +39,33 @@ O aluno não só responde perguntas: ele **aprende, experimenta e aplica**. Tudo
 > **Salas cheias:** dentro das vilas os colegas ficam translúcidos e intangíveis (sem nomes),
 > e não dá para duelar ali — só na praça. Assim 30+ alunos podem usar o mesmo Mestre/terminal ao mesmo tempo.
 
+## Progresso salvo pelo NOME 💾
+
+O aluno entra digitando o nome. Se esse nome já tem progresso **no computador do professor**
+(`server/data/save.json`), a tela mostra **"👋 Bem-vindo(a) de volta!"** e ele continua de onde parou —
+em qualquer computador da sala. Maiúsculas e acentos não importam ("ana souza" = "Ana Souza").
+Um nome que já está jogando em outro lugar é recusado (para ninguém "entrar na conta" de um colega
+online). O `save.json` não vai para o git: dá para fazer `git pull` à vontade sem perder nada,
+e a cada vez que o servidor inicia é feito um **backup automático** em `server/data/backups/` (os 20 últimos).
+
+## Contra o "chute" 🎲
+
+Errar rápido demais (ex.: menos de 4 s num quiz, 6 s no "Ligue" ou no "Monte a tela") conta como **chute**:
+- **+30 s no tempo final** do desafio (cada erro comum soma +10 s);
+- uma **espera antes da próxima tentativa** que cresce a cada erro seguido (3 s, 6 s, 10 s, 15 s; +5 s se foi chute),
+  com o botão "🧠 Pense… 5s" enquanto isso;
+- menos XP e moedas ao concluir; o professor vê os chutes no painel.
+Nos duelos e na corrida também há espera crescente após cada erro (2 s, 4 s, 6 s, 8 s).
+
+## Mais diversão 🎉
+
+- 🛍️ **Loja de cosméticos** (tecla **K**): chapéus, rastros ao andar, cor da plaquinha do nome e títulos.
+  Todos os colegas veem. Alguns itens pedem uma conquista (vencer um Guardião, concluir módulos…).
+- 🧪 **Laboratório livre** (tecla **L**): o aluno escreve JSX — com `style={{...}}` e `StyleSheet.create` —
+  e vê o celular mudar na hora. Sem nota: é para experimentar. Tem modelos prontos e ideias para tentar.
+- 🏁 **Corrida da turma**: o professor clica em "Iniciar corrida" no painel; todo mundo no mapa recebe a
+  mesma tarefa (blocos ou código) com ranking ao vivo. 🥇 +40 XP +20 moedas, 🥈 +30/+15, 🥉 +25/+10, quem terminar +15/+5.
+
 ## Recursos
 
 - 📜 **Missão atual** sempre visível + seta amarela guia + marcador ▼ + **minimapa**: o aluno nunca fica perdido
@@ -51,7 +78,8 @@ O aluno não só responde perguntas: ele **aprende, experimenta e aplica**. Tudo
 - 🤝 Cooperação: colega travado aparece com ❓; quem já concluiu pode enviar uma dica (custa moedas, nunca entrega a resposta); se ele acertar, ambos ganham pontos
 - ⭐ XP, níveis, moedas, conquistas, insígnias e inventário de cartas
 - 🔊 Efeitos sonoros (Howler.js) após interação do usuário
-- 👩‍🏫 Painel do professor em `/admin`: liberar módulos, ver progresso/quem completou cada desafio, logs, anúncios, exportar JSON/CSV, resetar
+- 👩‍🏫 Painel do professor em `/admin`: liberar módulos, ver progresso/quem completou cada desafio, logs, anúncios, exportar JSON/CSV, resetar,
+  **renomear / bloquear / apagar alunos**, **corrida da turma**, **desafios mais difíceis para a turma** e **quem precisa de ajuda agora**
 - 🖼️ Galeria em `/demos.html`: todas as demos e **todas as 21 lições** para o professor projetar em aula
   (ex.: `/demos.html?licao=FlatList`)
 
@@ -71,6 +99,9 @@ Professor (esta máquina): http://localhost:3000
 Alunos (mesma rede):      http://192.168.0.10:3000
 Painel do professor:      http://192.168.0.10:3000/admin   (senha: professor123)
 ```
+
+**Atualizar para uma versão nova:** pare o servidor (`Ctrl+C`), rode `git pull`, `npm install` e `npm start`.
+O progresso dos alunos continua (o save não é tocado pelo git e ganha um backup ao iniciar).
 
 Troque a senha: `ADMIN_SENHA=minhaSenha npm start` (no Windows PowerShell:
 `$env:ADMIN_SENHA="minhaSenha"; npm start`).
@@ -93,7 +124,8 @@ Troque a senha: `ADMIN_SENHA=minhaSenha npm start` (no Windows PowerShell:
 │   ├── src/game.ts            multiplayer: lobby, movimento, desafios, dicas, recompensas
 │   ├── src/challengeEngine.ts transforma conteúdo em rodadas (sorteio, embaralhamento, correção)
 │   ├── src/content/challenges.ts  ← BANCO DE DESAFIOS (com gabarito, só no servidor)
-│   ├── src/state.ts           estado em memória + save em server/data/save.json
+│   ├── src/state.ts           estado em memória + save em server/data/save.json (+ backups)
+│   ├── src/duels.ts · race.ts · shop.ts   duelos, corrida da turma, loja
 │   └── public/admin.html      painel do professor
 ├── client/            Vite + React + TypeScript + react-native-web + Phaser 3 + Howler
 │   ├── vite.config.ts         alias react-native → react-native-web
@@ -102,7 +134,7 @@ Troque a senha: `ADMIN_SENHA=minhaSenha npm start` (no Windows PowerShell:
 │   ├── src/screens/           Conexão, Lobby, Mundo (UI feita com componentes RN)
 │   ├── src/ui/                janelas de lição/desafio, editor de código, demos vivas
 │   └── public/sounds/         efeitos sonoros (.wav)
-├── shared/            tipos, eventos, módulos e mapa usados pelos dois lados
+├── shared/            tipos, eventos, módulos, mapa, duelos, cosméticos e laboratório (usados pelos dois lados)
 ├── scripts/generate-sounds.mjs  gera os sons 8-bit
 └── docs/
 ```

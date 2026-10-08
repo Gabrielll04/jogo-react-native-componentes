@@ -72,7 +72,7 @@ function findNode(root: ENode | null, uid: number | null): ENode | null {
 
 const clone = (n: ENode): ENode => ({ ...n, children: n.children?.map(clone) });
 
-export function BuildView({ p, submit, locked }: { p: BuildPayload; submit: (a: ChallengeAnswer) => void; locked: boolean }) {
+export function BuildView({ p, submit, locked, wait = 0 }: { p: BuildPayload; submit: (a: ChallengeAnswer) => void; locked: boolean; wait?: number }) {
   const [root, setRoot] = useState<ENode | null>(null);
   const [sel, setSel] = useState<number | null>(null);
   const lines = useMemo(() => (root ? toLines(root) : []), [root]);
@@ -228,7 +228,7 @@ export function BuildView({ p, submit, locked }: { p: BuildPayload; submit: (a: 
               </PhoneFrame>
             </View>
           </View>
-          <Btn big primary title="▶ Executar e conferir" disabled={!root || locked} onPress={() => root && submit(strip(root))} style={{ alignSelf: 'stretch' }} />
+          <Btn big primary title={wait > 0 ? `🧠 Pense… ${wait}s` : '▶ Executar e conferir'} disabled={!root || locked || wait > 0} onPress={() => root && submit(strip(root))} style={{ alignSelf: 'stretch' }} />
         </View>
       </View>
     </View>

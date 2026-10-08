@@ -23,6 +23,10 @@ export const EV = {
   DUEL_RESPOND: 'duel_respond', // {duelId, accept}
   DUEL_SUBMIT: 'duel_submit', // {duelId, answer}
   DUEL_FORFEIT: 'duel_forfeit', // {duelId}
+  SHOP_BUY: 'shop_buy', // {itemId}
+  SHOP_EQUIP: 'shop_equip', // {kind, itemId|null}
+  LAB_BUILT: 'lab_built', // {nodes} — montou uma tela no Laboratório
+  RACE_SUBMIT: 'race_submit', // {raceId, answer}
 
   // servidor -> cliente
   WELCOME: 'welcome', // {playerId, progress, modules, players}
@@ -47,6 +51,10 @@ export const EV = {
   DUEL_FEEDBACK: 'duel_feedback', // {msg}
   DUEL_OPPONENT: 'duel_opponent', // {attempts}
   DUEL_END: 'duel_end', // DuelEnd
+  LOGIN_ERROR: 'login_error', // {text} — nome em uso, aluno bloqueado…
+  RACE_START: 'race_start', // RaceStart
+  RACE_FEEDBACK: 'race_feedback', // {msg, cooldownMs}
+  RACE_STATE: 'race_state', // RaceState (ranking ao vivo)
 } as const;
 
 export const TEAMS = [
@@ -69,4 +77,25 @@ export const RULES = {
   XP_PER_LEVEL: 100,
   MOVE_SEND_MS: 66, // cliente envia posição no máx. ~15x/s
   SYNC_MS: 100, // servidor retransmite posições 10x/s
+  // ---- contra o "chute" (tentar combinações até acertar)
+  /** errar mais rápido que isto (desde que a pergunta apareceu) = chute */
+  GUESS_FAST_MS: { quiz_component: 4000, fix_bug: 5000, match_use: 6000, build_ui: 6000, boss_challenge: 4000 },
+  /** tempo extra somado ao tempo final por erro / por chute */
+  WRONG_PENALTY_MS: 10_000,
+  GUESS_PENALTY_MS: 30_000,
+  /** espera antes de poder tentar de novo: cresce a cada erro seguido (ms) */
+  WRONG_COOLDOWN_MS: [3000, 6000, 10000, 15000],
+  GUESS_EXTRA_COOLDOWN_MS: 5000,
+  /** duelos e corrida (contra o relógio): esperas menores */
+  RACE_COOLDOWN_MS: [2000, 4000, 6000, 8000],
 };
+
+/** Normaliza um nome para comparar ("  Ána  Clara " == "ana clara"). */
+export function nameKey(name: string) {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}

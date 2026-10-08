@@ -150,7 +150,7 @@ export function parseJsx(source: string): ParseResult {
   };
 
   const element = (depth: number): ParsedNode => {
-    if (depth > 10 || ++count > 60) fail('Tela grande demais para um duelo!');
+    if (depth > 10 || ++count > 60) fail('Tela grande demais (máximo de 60 componentes)!');
     i++; // "<"
     let name = 'Fragment';
     if (code[i] !== '>') {

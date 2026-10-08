@@ -47,6 +47,7 @@ export function DuelOverlay() {
   }, [toStart]);
 
   const showFeedback = feedback && now - feedback.at < 6000;
+  const wait = feedback ? Math.max(0, Math.ceil((feedback.until - now) / 1000)) : 0;
 
   return (
     <View style={styles.backdrop}>
@@ -85,17 +86,13 @@ export function DuelOverlay() {
                   p={{ kind: 'build', prompt: task.prompt, target: task.target, blocks: task.blocks, styles: {} } satisfies BuildPayload}
                   submit={(a) => actions.duelSubmit(a)}
                   locked={false}
+                  wait={wait}
                 />
               ) : (
-                <CodeDuel task={task} />
+                <CodeTaskEditor task={task} onSubmit={actions.duelSubmit} wait={wait} />
               )}
             </ScrollView>
-            {showFeedback ? (
-              <View style={styles.feedback}>
-                <Text style={styles.feedbackTitle}>❌ Ainda não…</Text>
-                <Text style={styles.feedbackText}>{feedback.msg}</Text>
-              </View>
-            ) : null}
+            {showFeedback ? <WrongFeedback msg={feedback.msg} wait={wait} /> : null}
           </View>
         )}
       </View>
@@ -103,7 +100,7 @@ export function DuelOverlay() {
   );
 }
 
-function Countdown({ n, title, prompt }: { n: number; title: string; prompt: string }) {
+export function Countdown({ n, title, prompt }: { n: number; title: string; prompt: string }) {
   const scale = useRef(new Animated.Value(0.3)).current;
   useEffect(() => {
     scale.setValue(0.3);
@@ -118,9 +115,21 @@ function Countdown({ n, title, prompt }: { n: number; title: string; prompt: str
   );
 }
 
+/** Faixa de "errou" usada no duelo e na corrida (com a espera antes de tentar de novo). */
+export function WrongFeedback({ msg, wait }: { msg: string; wait: number }) {
+  return (
+    <View style={styles.feedback}>
+      <Text style={styles.feedbackTitle}>❌ Ainda não…</Text>
+      <Text style={styles.feedbackText}>{msg}</Text>
+      {wait > 0 ? <Text style={[styles.feedbackText, { fontSize: 13, color: '#8a3b3b' }]}>🧠 Pense antes de tentar de novo: {wait}s (chutar só atrasa você!)</Text> : null}
+    </View>
+  );
+}
+
 // ------------------------------------------------------------ modo código
 
-function CodeDuel({ task }: { task: CodeTask }) {
+/** Editor da tarefa de código (duelo e corrida): checklist ao vivo + prévia no celular. */
+export function CodeTaskEditor({ task, onSubmit, wait = 0 }: { task: CodeTask; onSubmit: (code: string) => void; wait?: number }) {
   const [code, setCode] = useState(task.starter);
   const result = useMemo(() => checkCode(task, code), [task, code]);
   const allOk = result.ok;
@@ -151,12 +160,18 @@ function CodeDuel({ task }: { task: CodeTask }) {
             autoCapitalize="none"
             spellCheck={false}
             onKeyPress={(e: { nativeEvent: { key: string; ctrlKey?: boolean; metaKey?: boolean } }) => {
-              if (e.nativeEvent.key === 'Enter' && (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey)) actions.duelSubmit(code);
+              if (e.nativeEvent.key === 'Enter' && (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) && wait <= 0) onSubmit(code);
             }}
             style={styles.input}
           />
         </View>
-        <Btn big variant={allOk ? 'primary' : 'blue'} title={allOk ? '▶ Enviar (tudo certo!)' : '▶ Enviar  (Ctrl+Enter)'} onPress={() => actions.duelSubmit(code)} />
+        <Btn
+          big
+          variant={allOk ? 'primary' : 'blue'}
+          title={wait > 0 ? `🧠 Pense… ${wait}s` : allOk ? '▶ Enviar (tudo certo!)' : '▶ Enviar  (Ctrl+Enter)'}
+          disabled={wait > 0}
+          onPress={() => onSubmit(code)}
+        />
       </View>
       <View style={{ alignItems: 'center', gap: 8 }}>
         <Text style={styles.label}>📱 O que o seu código mostra</Text>

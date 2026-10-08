@@ -18,9 +18,12 @@ import type {
   ModuleState,
   PlayerProgress,
   PublicPlayer,
+  RaceStart,
+  RaceState,
   SoundName,
   TeamId,
 } from '@shared/types';
+import type { CosmeticKind } from '@shared/cosmetics';
 import { playSound } from '../audio/sound';
 import { bridge } from '../game/bridge';
 import { getState, setState, toast } from '../state/store';
@@ -42,6 +45,16 @@ function savedPlayerId() {
   }
 }
 
+/** guarda o nome oficial (o professor pode ter renomeado) para a próxima entrada */
+function rememberName(name: string) {
+  try {
+    const saved = JSON.parse(localStorage.getItem('rnq_profile') || '{}');
+    if (saved.name !== name) localStorage.setItem('rnq_profile', JSON.stringify({ ...saved, name }));
+  } catch {
+    /* ignore */
+  }
+}
+
 function rememberPlayerId(id: string) {
   try {
     sessionStorage.setItem(ID_KEY, id);
@@ -53,6 +66,7 @@ function rememberPlayerId(id: string) {
 
 export function connect(p: { name: string; color: string; team: TeamId }) {
   profile = p;
+  setState({ loginError: null });
   if (socket) {
     socket.connect();
     return;
@@ -81,8 +95,11 @@ export function connect(p: { name: string; color: string; team: TeamId }) {
     players: PublicPlayer[];
     teamTotals: Record<string, number>;
     achievements: Record<string, { title: string; emoji: string }>;
+    returning?: boolean;
   }) => {
     rememberPlayerId(data.playerId);
+    rememberName(data.progress.name);
+    if (profile) profile = { ...profile, name: data.progress.name };
     const wasInWorld = getState().screen === 'world';
     setState({
       playerId: data.playerId,
@@ -94,7 +111,12 @@ export function connect(p: { name: string; color: string; team: TeamId }) {
       screen: wasInWorld ? 'world' : 'lobby',
     });
     if (wasInWorld) socket!.emit(EV.ENTER_WORLD);
+    else if (data.returning) toast(`👋 Bem-vindo(a) de volta, ${data.progress.name}! Seu progresso foi carregado.`, 'success', 5000);
     playSound('connect');
+  });
+
+  socket.on(EV.LOGIN_ERROR, (e: { text: string }) => {
+    setState({ loginError: e.text, screen: 'connect', challenge: null, duel: null, race: null });
   });
 
   socket.on(EV.LOBBY_UPDATE, (players: PublicPlayer[]) => setState({ players }));
@@ -129,7 +151,11 @@ export function connect(p: { name: string; color: string; team: TeamId }) {
 
   socket.on(EV.HELP_REQUESTS, (helpRequests: HelpRequest[]) => setState({ helpRequests }));
 
-  socket.on(EV.UPDATE_INVENTORY, (progress: PlayerProgress) => setState({ progress }));
+  socket.on(EV.UPDATE_INVENTORY, (progress: PlayerProgress) => {
+    rememberName(progress.name);
+    if (profile) profile = { ...profile, name: progress.name };
+    setState({ progress });
+  });
 
   socket.on(EV.TEAM_PROGRESS_UPDATE, (teamTotals: Record<string, number>) => setState({ teamTotals }));
 
@@ -170,9 +196,22 @@ export function connect(p: { name: string; color: string; team: TeamId }) {
       lastResult: null,
     });
   });
-  socket.on(EV.DUEL_FEEDBACK, (f: { msg: string }) => setState({ duelFeedback: { msg: f.msg, at: Date.now() } }));
+  socket.on(EV.DUEL_FEEDBACK, (f: { msg: string; cooldownMs?: number }) =>
+    setState({ duelFeedback: { msg: f.msg, at: Date.now(), until: Date.now() + (f.cooldownMs ?? 0) } })
+  );
   socket.on(EV.DUEL_OPPONENT, (o: { attempts: number }) => setState({ duelOppAttempts: o.attempts }));
   socket.on(EV.DUEL_END, (e: DuelEnd) => setState({ duelEnd: e }));
+
+  // ---- corrida da turma
+  socket.on(EV.RACE_START, (r: RaceStart) => {
+    const startAt = Date.now() + r.startsIn;
+    // em duelo: a corrida fica minimizada (o aluno abre depois pelo botão)
+    setState({ race: { ...r, startAt, endAt: startAt + r.maxMs }, raceFeedback: null, raceState: null, raceOpen: !getState().duel });
+  });
+  socket.on(EV.RACE_STATE, (raceState: RaceState) => setState({ raceState }));
+  socket.on(EV.RACE_FEEDBACK, (f: { msg: string; cooldownMs: number }) =>
+    setState({ raceFeedback: { msg: f.msg, at: Date.now(), until: Date.now() + f.cooldownMs } })
+  );
 }
 
 // ---------------- ações do jogador ----------------
@@ -186,7 +225,7 @@ export const actions = {
   },
   leaveWorld() {
     emit(EV.LEAVE_WORLD); // durante um duelo, sair conta como desistência
-    setState({ screen: 'lobby', challenge: null, lastResult: null, duel: null, duelEnd: null, duelInvites: [] });
+    setState({ screen: 'lobby', challenge: null, lastResult: null, duel: null, duelEnd: null, duelInvites: [], race: null, raceState: null, raceOpen: false });
   },
   move: (() => {
     // throttle: no máximo uma mensagem a cada RULES.MOVE_SEND_MS,
@@ -256,6 +295,22 @@ export const actions = {
   },
   closeDuel() {
     setState({ duel: null, duelEnd: null, duelFeedback: null });
+  },
+  raceSubmit(answer: unknown) {
+    const r = getState().race;
+    if (r) emit(EV.RACE_SUBMIT, { raceId: r.raceId, answer });
+  },
+  closeRace() {
+    setState({ race: null, raceState: null, raceFeedback: null, raceOpen: false });
+  },
+  shopBuy(itemId: string) {
+    emit(EV.SHOP_BUY, { itemId });
+  },
+  shopEquip(kind: CosmeticKind, itemId: string | null) {
+    emit(EV.SHOP_EQUIP, { kind, itemId });
+  },
+  labBuilt(nodes: number) {
+    emit(EV.LAB_BUILT, { nodes });
   },
 };
 
