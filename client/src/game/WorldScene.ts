@@ -44,6 +44,8 @@ interface Avatar {
   title: Phaser.GameObjects.Text;
   trail: string | null;
   lookKey: string;
+  /** textura atual do corpo (muda quando o aluno troca pele/cabelo/roupa) */
+  bodyKey: string;
   nextTrail: number;
   isMe: boolean;
   tx: number;
@@ -114,6 +116,7 @@ export class WorldScene extends Phaser.Scene {
     const mine = s.players.find((p) => p.id === s.playerId);
     this.me = this.makeAvatar(s.progress?.name ?? 'Eu', s.progress?.color ?? '#fff', true);
     this.applyLook(this.me, s.progress?.equipped);
+    if (s.progress) this.setBody(this.me, s.progress);
     const sx = this.world.spawn.x + Phaser.Math.Between(-32, 32);
     this.me.root.setPosition(mine?.inWorld && mine.x ? mine.x : sx, mine?.inWorld && mine.y ? mine.y : this.world.spawn.y);
 
@@ -413,6 +416,7 @@ export class WorldScene extends Phaser.Scene {
 
   private makeAvatar(name: string, color: string, isMe: boolean): Avatar {
     const key = ensureCharTexture(this, `p-${color}-${name}`, playerLook(name, color));
+    // (a textura certa, com pele/cabelo escolhidos, entra em setBody logo depois)
     const shadow = this.add.ellipse(0, 13, 22, 8, 0x000000, 0.28);
     const sprite = this.add.sprite(0, 0, key, 'down0').setScale(2).setOrigin(0.5, 0.75);
     const label = this.add
@@ -454,6 +458,7 @@ export class WorldScene extends Phaser.Scene {
       title,
       trail: null,
       lookKey: '',
+      bodyKey: key,
       nextTrail: 0,
       isMe,
       tx: 0,
@@ -461,6 +466,16 @@ export class WorldScene extends Phaser.Scene {
       dir: 'down',
       moving: false,
     };
+  }
+
+  /** aplica a aparência do menu "Personagem" (cor da roupa, pele e cabelo) */
+  private setBody(a: Avatar, p: { name: string; color: string; skin?: string; hair?: string }) {
+    const look = playerLook(p.name, p.color, p.skin, p.hair);
+    const key = `p-${look.shirt}-${look.skin}-${look.hair}`;
+    if (key === a.bodyKey) return;
+    a.bodyKey = ensureCharTexture(this, key, look);
+    a.sprite.setTexture(a.bodyKey, a.sprite.frame.name);
+    if (!a.isMe) a.mini.setFillStyle(hex(p.color));
   }
 
   /** aplica os cosméticos comprados na loja */
@@ -521,6 +536,7 @@ export class WorldScene extends Phaser.Scene {
         const info = getState().players.find((p) => p.id === id);
         a = this.makeAvatar(info?.name ?? '???', info?.color ?? '#999', false);
         this.applyLook(a, info?.look);
+        if (info) this.setBody(a, info);
         a.root.setPosition(x, y);
         this.others.set(id, a);
       }
@@ -561,6 +577,7 @@ export class WorldScene extends Phaser.Scene {
           this.me.status.setText(p.dueling ? '⚔️' : p.stuck ? '❓' : '');
           this.me.label.setText(`${p.name} · nv${p.level}`);
           this.applyLook(this.me, p.look);
+          this.setBody(this.me, p);
           continue;
         }
         if (!p.inWorld) {
@@ -581,6 +598,7 @@ export class WorldScene extends Phaser.Scene {
           a.label.setText(`${p.name} · nv${p.level}`);
           a.status.setText(p.dueling ? '⚔️' : p.stuck ? '❓' : p.stationId ? '📝' : '');
           this.applyLook(a, p.look);
+          this.setBody(a, p);
         }
       }
       for (const id of [...this.others.keys()]) if (!present.has(id)) this.removeOther(id);

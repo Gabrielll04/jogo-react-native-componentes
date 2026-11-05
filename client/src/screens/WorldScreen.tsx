@@ -10,6 +10,7 @@ import { actions, moduleName } from '../net/socket';
 import { getState, toast, useStore } from '../state/store';
 import { Btn } from '../ui/Btn';
 import { ChallengeOverlay } from '../ui/ChallengeOverlay';
+import { CharacterPanel } from '../ui/CharacterPanel';
 import { DuelInvites } from '../ui/DuelInvites';
 import { DuelOverlay } from '../ui/DuelOverlay';
 import { DuelPanel } from '../ui/DuelPanel';
@@ -39,7 +40,7 @@ export function WorldScreen() {
   const [area, setArea] = useState<number | null>(null);
   const [sign, setSign] = useState<number | null>(null);
   const [lesson, setLesson] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'inv' | 'help' | 'duel' | 'shop' | 'lab' | null>(null);
+  const [panel, setPanel] = useState<'inv' | 'help' | 'duel' | 'shop' | 'lab' | 'char' | null>(null);
   const [duelTarget, setDuelTarget] = useState<string | null>(null);
   const [tutorial, setTutorial] = useState<number>(() => {
     try {
@@ -109,6 +110,7 @@ export function WorldScreen() {
       if (e.key.toLowerCase() === 'h') setPanel((p) => (p === 'help' ? null : 'help'));
       if (e.key.toLowerCase() === 'l') setPanel((p) => (p === 'lab' ? null : 'lab'));
       if (e.key.toLowerCase() === 'k') setPanel((p) => (p === 'shop' ? null : 'shop'));
+      if (e.key.toLowerCase() === 'p') setPanel((p) => (p === 'char' ? null : 'char'));
       if (e.key.toLowerCase() === 'x') {
         setDuelTarget(null);
         setPanel((p) => (p === 'duel' ? null : 'duel'));
@@ -196,6 +198,7 @@ export function WorldScreen() {
         <Text style={styles.minimapLabel}>MAPA</Text>
       </View>
       <View style={styles.sideButtons} pointerEvents="box-none">
+ <Btn small variant="purple" title="🎨 Personagem (P)" onPress={() => setPanel(panel === 'char' ? null : 'char')} />
         <Btn small variant="gold" title="🛍️ Loja (K)" onPress={() => setPanel(panel === 'shop' ? null : 'shop')} />
         <Btn small variant="primary" title="🧪 Laboratório (L)" onPress={() => setPanel(panel === 'lab' ? null : 'lab')} />
       </View>
@@ -232,6 +235,7 @@ export function WorldScreen() {
       {panel === 'inv' ? <InventoryPanel onClose={() => setPanel(null)} /> : null}
       {panel === 'help' ? <HelpPanel onClose={() => setPanel(null)} /> : null}
       {panel === 'duel' ? <DuelPanel preselect={duelTarget} onClose={() => setPanel(null)} /> : null}
+      {panel === 'char' ? <CharacterPanel onClose={() => setPanel(null)} /> : null}
       {panel === 'shop' ? <ShopPanel onClose={() => setPanel(null)} /> : null}
       {panel === 'lab' ? <LabOverlay onClose={() => setPanel(null)} /> : null}
       {lesson ? (

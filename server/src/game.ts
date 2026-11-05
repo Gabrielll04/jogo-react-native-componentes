@@ -6,6 +6,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Server, Socket } from 'socket.io';
 import { AVATAR_COLORS, EMOTES, EV, nameKey, RULES, TEAMS } from '../../shared/events';
+import { HAIR_COLORS, SKIN_TONES } from '../../shared/avatar';
 import { buildWorld, MAP_H, MAP_W, TILE } from '../../shared/map';
 import { COMPONENTS, findStation, levelFromXp, MODULES } from '../../shared/modules';
 import type {
@@ -73,6 +74,8 @@ function toPublic(o: OnlinePlayer): PublicPlayer {
     emote: null,
     dueling: Boolean(o.duelId),
     look: p.equipped,
+    skin: p.skin,
+    hair: p.hair,
   };
 }
 
@@ -598,6 +601,16 @@ export function setupGame(server: Server) {
     registerDuelHandlers(socket, () => me);
     registerRaceHandlers(socket, () => me);
     registerShopHandlers(socket, () => me);
+
+    // ---- menu "Personagem": cor da roupa, tom de pele e cabelo
+    socket.on(EV.PROFILE_LOOK, (data: { color?: string; skin?: string; hair?: string }) => {
+      if (!me) return;
+      const p = state.progress[me.playerId];
+      if (AVATAR_COLORS.includes(String(data?.color))) p.color = String(data.color);
+      if (SKIN_TONES.includes(String(data?.skin))) p.skin = String(data.skin);
+      if (HAIR_COLORS.includes(String(data?.hair))) p.hair = String(data.hair);
+      afterProgressChange(me);
+    });
 
     // ---- Laboratório livre 🧪 (sem nota: só a conquista na primeira tela "de verdade")
     socket.on(EV.LAB_BUILT, (data: { nodes: number }) => {

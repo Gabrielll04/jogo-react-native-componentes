@@ -60,6 +60,7 @@ Nos duelos e na corrida também há espera crescente após cada erro (2 s, 4 s, 
 
 ## Mais diversão 🎉
 
+- 🎨 **Personagem** (tecla **P**): tom de pele, cor do cabelo e da roupa, com prévia animada.
 - 🛍️ **Loja de cosméticos** (tecla **K**): chapéus, rastros ao andar, cor da plaquinha do nome e títulos.
   Todos os colegas veem. Alguns itens pedem uma conquista (vencer um Guardião, concluir módulos…).
 - 🧪 **Laboratório livre** (tecla **L**): o aluno escreve JSX — com `style={{...}}` e `StyleSheet.create` —

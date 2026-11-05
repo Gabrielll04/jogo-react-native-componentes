@@ -25,6 +25,7 @@ export const EV = {
   DUEL_FORFEIT: 'duel_forfeit', // {duelId}
   SHOP_BUY: 'shop_buy', // {itemId}
   SHOP_EQUIP: 'shop_equip', // {kind, itemId|null}
+  PROFILE_LOOK: 'profile_look', // {color, skin, hair} — menu "Personagem"
   LAB_BUILT: 'lab_built', // {nodes} — montou uma tela no Laboratório
   RACE_SUBMIT: 'race_submit', // {raceId, answer}
 

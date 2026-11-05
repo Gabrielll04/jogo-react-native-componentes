@@ -4,6 +4,7 @@
  * Quadros: down0 down1 up0 up1 left0 left1 right0 right1
  */
 import Phaser from 'phaser';
+import { resolveLook } from '@shared/avatar';
 
 export type Dir = 'down' | 'up' | 'left' | 'right';
 const DIRS: Dir[] = ['down', 'up', 'left', 'right'];
@@ -19,19 +20,10 @@ export interface CharLook {
   mentor?: boolean;
 }
 
-const SKINS = ['#f2c79b', '#d9a066', '#a8714a', '#7a4b2e', '#ffdcb5'];
-const HAIRS = ['#3b2414', '#1c1c1c', '#7a4a1e', '#d9a23a', '#a33b1e', '#5b3a8a'];
-
-function hash(s: string) {
-  let h = 0;
-  for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return h;
-}
-
-/** Visual de aluno: camiseta da cor escolhida; cabelo e pele variam pelo nome. */
-export function playerLook(name: string, color: string): CharLook {
-  const h = hash(name);
-  return { shirt: color, hair: HAIRS[h % HAIRS.length], skin: SKINS[(h >> 3) % SKINS.length], pants: '#2c3e66' };
+/** Visual de aluno: camiseta da cor escolhida; pele e cabelo do menu "Personagem" (ou sorteados pelo nome). */
+export function playerLook(name: string, color: string, skin?: string, hair?: string): CharLook {
+  const r = resolveLook(name, skin, hair);
+  return { shirt: color, hair: r.hair, skin: r.skin, pants: '#2c3e66' };
 }
 
 export function mentorLook(color: string): CharLook {
@@ -132,4 +124,27 @@ export function ensureCharTexture(scene: Phaser.Scene, key: string, look: CharLo
   tex.refresh();
   tex.setFilter(Phaser.Textures.FilterMode.NEAREST);
   return key;
+}
+
+/** Desenha um quadro do personagem num <canvas> comum (prévia do menu "Personagem"). */
+export function paintCharPreview(canvas: HTMLCanvasElement, look: CharLook, dir: Dir, step: number) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const off = document.createElement('canvas');
+  off.width = FW;
+  off.height = FH + 1;
+  const octx = off.getContext('2d')!;
+  octx.translate(0, 1);
+  drawFrame(octx, 0, dir, step, look);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingEnabled = false;
+  const scale = Math.floor(Math.min(canvas.width / FW, canvas.height / (FH + 1)));
+  const w = FW * scale;
+  const h = (FH + 1) * scale;
+  // sombra no chão
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.beginPath();
+  ctx.ellipse(canvas.width / 2, (canvas.height + h) / 2 - scale, w * 0.36, scale * 1.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.drawImage(off, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
 }

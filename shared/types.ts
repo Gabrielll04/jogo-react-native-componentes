@@ -62,6 +62,9 @@ export interface PublicPlayer {
   dueling?: boolean;
   /** cosméticos equipados (ids de shared/cosmetics.ts) */
   look?: Partial<Record<'hat' | 'trail' | 'tag' | 'title', string>>;
+  /** tom de pele e cor do cabelo escolhidos no menu "Personagem" */
+  skin?: string;
+  hair?: string;
 }
 
 export interface CompletionRecord {
@@ -100,6 +103,9 @@ export interface PlayerProgress {
   owned: string[];
   equipped: Partial<Record<'hat' | 'trail' | 'tag' | 'title', string>>;
   racesWon: number;
+  /** aparência escolhida no menu "Personagem" (sem valor = sorteada pelo nome) */
+  skin?: string;
+  hair?: string;
   /** bloqueado pelo professor */
   banned?: boolean;
   createdAt: number;

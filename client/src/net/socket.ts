@@ -309,6 +309,9 @@ export const actions = {
   shopEquip(kind: CosmeticKind, itemId: string | null) {
     emit(EV.SHOP_EQUIP, { kind, itemId });
   },
+  setLook(look: { color: string; skin: string; hair: string }) {
+    emit(EV.PROFILE_LOOK, look);
+  },
   labBuilt(nodes: number) {
     emit(EV.LAB_BUILT, { nodes });
   },
