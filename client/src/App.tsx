@@ -3,6 +3,7 @@ import { ConnectScreen } from './screens/ConnectScreen';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { WorldScreen } from './screens/WorldScreen';
 import { useStore } from './state/store';
+import { Appear } from './ui/Appear';
 import { colors } from './ui/theme';
 
 /** Navegação simples por estado: conexão -> lobby -> mundo. */
@@ -23,12 +24,12 @@ function Toasts() {
   return (
     <View style={styles.toasts} pointerEvents="none">
       {toasts.map((t) => (
-        <View
+        <Appear
           key={t.id}
           style={[styles.toast, { borderColor: t.kind === 'success' ? colors.ok : t.kind === 'warn' ? colors.warn : colors.accent }]}
         >
           <Text style={{ color: colors.text, fontWeight: '600' }}>{t.text}</Text>
-        </View>
+        </Appear>
       ))}
     </View>
   );
@@ -41,6 +42,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(18,20,28,0.95)',
     borderWidth: 2,
     borderRadius: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
     paddingVertical: 8,
     paddingHorizontal: 14,
     maxWidth: 560,

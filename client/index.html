@@ -11,6 +11,15 @@
       #root { display: flex; }
       /* sem ligaduras: "=>" aparece como "=>" (mais claro para quem está aprendendo) */
       * { font-variant-ligatures: none; }
+      body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+      ::selection { background: rgba(97, 218, 251, 0.35); }
+      /* barras de rolagem discretas, no tom dos painéis */
+      * { scrollbar-width: thin; scrollbar-color: #39406b transparent; }
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #39406b; border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+      ::-webkit-scrollbar-thumb:hover { background: #4b5390; background-clip: padding-box; border: 2px solid transparent; }
+      canvas { image-rendering: pixelated; }
     </style>
   </head>
   <body>

@@ -1,13 +1,14 @@
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Appear, Fade } from './Appear';
 import { Btn } from './Btn';
 import { colors, ui } from './theme';
 
 /** Janela sobre o mapa (fundo escurecido + painel rolável). */
 export function Overlay(props: { title: string; onClose?: () => void; children: ReactNode; maxWidth?: number; header?: ReactNode }) {
   return (
-    <View style={styles.backdrop}>
-      <View style={[ui.panel, styles.panel, { maxWidth: props.maxWidth ?? 720 }]}>
+    <Fade style={styles.backdrop}>
+      <Appear style={[ui.panel, styles.panel, { maxWidth: props.maxWidth ?? 720 }]}>
         <View style={[ui.row, { justifyContent: 'space-between', marginBottom: 10, gap: 8 }]}>
           <Text style={[ui.title, { fontSize: 19, flexShrink: 1 }]}>{props.title}</Text>
           {props.onClose ? <Btn small title="✕ Fechar" onPress={props.onClose} /> : null}
@@ -16,8 +17,8 @@ export function Overlay(props: { title: string; onClose?: () => void; children: 
         <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 6 }}>
           {props.children}
         </ScrollView>
-      </View>
-    </View>
+      </Appear>
+    </Fade>
   );
 }
 

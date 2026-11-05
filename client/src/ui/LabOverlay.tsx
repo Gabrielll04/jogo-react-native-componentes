@@ -6,6 +6,7 @@ import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from 
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { parseLab } from '@shared/lab';
 import { actions } from '../net/socket';
+import { Appear, Fade } from './Appear';
 import { Btn } from './Btn';
 import { CodeEditor } from './CodeEditor';
 import { PhoneFrame } from './PhoneFrame';
@@ -138,8 +139,8 @@ export function LabOverlay({ onClose }: { onClose: () => void }) {
   }, [result]);
 
   return (
-    <View style={styles.backdrop}>
-      <View style={styles.window}>
+    <Fade style={styles.backdrop}>
+      <Appear style={styles.window}>
         <View style={styles.header}>
           <Text style={styles.title}>🧪 Laboratório livre</Text>
           <Text style={styles.sub}>Escreva o código e veja o resultado ao lado.</Text>
@@ -196,8 +197,8 @@ export function LabOverlay({ onClose }: { onClose: () => void }) {
             </View>
           </View>
         </ScrollView>
-      </View>
-    </View>
+      </Appear>
+    </Fade>
   );
 }
 

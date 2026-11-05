@@ -5,6 +5,7 @@ import { MODULES } from '@shared/modules';
 import type { AnswerResult, BossState, ChallengeType } from '@shared/types';
 import { actions } from '../net/socket';
 import { useStore } from '../state/store';
+import { Appear, Fade } from './Appear';
 import { Btn } from './Btn';
 import { BugView, BuildView, MatchView, QuizView } from './challenges/ChallengeViews';
 import { CodeView } from './CodeView';
@@ -41,8 +42,8 @@ export function ChallengeOverlay() {
   const key = `${c.instanceId}-${c.boss?.round ?? 0}-${c.boss?.hearts ?? 0}`;
 
   return (
-    <View style={styles.backdrop}>
-      <View style={[styles.window, { borderColor: c.boss ? '#c0392b' : mod.color }]}>
+    <Fade style={styles.backdrop}>
+      <Appear style={[styles.window, { borderColor: c.boss ? '#c0392b' : mod.color }]}>
         <View style={[styles.header, { backgroundColor: c.boss ? '#7a1f1f' : mod.color }]}>
           <Text style={styles.headerTitle}>
             {station?.emoji} {c.title}
@@ -94,8 +95,8 @@ export function ChallengeOverlay() {
             {sheet ? <FeedbackSheet r={sheet} onContinue={() => setSheet(null)} /> : null}
           </>
         )}
-      </View>
-    </View>
+      </Appear>
+    </Fade>
   );
 }
 

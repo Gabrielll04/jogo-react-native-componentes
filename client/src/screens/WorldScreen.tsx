@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { EMOTES, RULES } from '@shared/events';
 import { findStation, levelFromXp, MODULES } from '@shared/modules';
 import { toggleMute } from '../audio/sound';
-import { bridge, type Interactable } from '../game/bridge';
+import { bridge, interactKey, type Interactable } from '../game/bridge';
 import { GameCanvas } from '../game/GameCanvas';
 import { currentObjective, moduleProgress, stationLock } from '../game/quest';
 import { actions, moduleName } from '../net/socket';
 import { getState, toast, useStore } from '../state/store';
+import { Appear } from '../ui/Appear';
 import { Btn } from '../ui/Btn';
 import { ChallengeOverlay } from '../ui/ChallengeOverlay';
 import { CharacterPanel } from '../ui/CharacterPanel';
@@ -146,11 +147,9 @@ export function WorldScreen() {
             <Text style={styles.name} numberOfLines={1}>
               {progress?.name}
             </Text>
-            <View style={styles.xpBar}>
-              <View style={[styles.xpFill, { width: `${xpInLevel}%` }]} />
-            </View>
+            <XpBar pct={xpInLevel} />
             <Text style={styles.stats}>
-              ⭐ {xpInLevel}/100 · 🪙 {progress?.coins} · 🃏 {progress?.cards.length} · 🤝 {progress?.coopPoints}
+              ⭐ {xpInLevel}/100 · <Pulse value={progress?.coins ?? 0}>🪙 {progress?.coins}</Pulse> · 🃏 {progress?.cards.length} · 🤝 {progress?.coopPoints}
             </Text>
           </View>
         </View>
@@ -215,7 +214,7 @@ export function WorldScreen() {
       </View>
 
       {/* ---------- prompt de interação */}
-      {nearby && !overlayOpen ? <Prompt it={nearby} /> : null}
+      {nearby && !overlayOpen ? <Prompt key={interactKey(nearby)} it={nearby} /> : null}
 
       {/* ---------- controles + emotes */}
       <View style={styles.controls} pointerEvents="box-none">
@@ -257,6 +256,42 @@ export function WorldScreen() {
   );
 }
 
+/** barra de XP que enche suavemente (e dá um brilho ao subir) */
+function XpBar({ pct }: { pct: number }) {
+  const w = useRef(new Animated.Value(pct)).current;
+  const glow = useRef(new Animated.Value(0)).current;
+  const last = useRef(pct);
+  useEffect(() => {
+    if (pct > last.current) {
+      glow.setValue(1);
+      Animated.timing(glow, { toValue: 0, duration: 900, useNativeDriver: false }).start();
+    }
+    last.current = pct;
+    Animated.timing(w, { toValue: pct, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+  }, [pct]);
+  return (
+    <View style={styles.xpBar}>
+      <Animated.View style={[styles.xpFill, { width: w.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) }]} />
+      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { backgroundColor: '#fff', opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] }) }]} />
+    </View>
+  );
+}
+
+/** número que dá um "pulinho" quando muda (moedas) */
+function Pulse({ value, children }: { value: number; children: ReactNode }) {
+  const s = useRef(new Animated.Value(1)).current;
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    s.setValue(1.35);
+    Animated.spring(s, { toValue: 1, friction: 4, useNativeDriver: false }).start();
+  }, [value]);
+  return <Animated.Text style={{ display: 'inline-flex', transform: [{ scale: s }] }}>{children}</Animated.Text>;
+}
+
 // leitura pontual do progresso (fora do ciclo de render)
 const useStoreSnapshot = () => getState().progress;
 
@@ -287,14 +322,14 @@ function Prompt({ it }: { it: Interactable }) {
     action = 'Ler a placa';
   }
   return (
-    <View style={styles.prompt}>
+    <Appear style={styles.prompt}>
       <Text style={styles.promptTitle}>{title}</Text>
       {lock ? <Text style={styles.promptLock}>🔒 {lock}</Text> : null}
       <Pressable onPress={() => bridge.emit('interact', it)} style={[styles.promptBtn, lock ? { backgroundColor: '#555a70', borderBottomColor: '#3a3e52' } : null]}>
         <Text style={styles.keyBig}>E</Text>
         <Text style={styles.promptAction}>{action}</Text>
       </Pressable>
-    </View>
+    </Appear>
   );
 }
 
@@ -355,6 +390,10 @@ function Tutorial({ step, name, setStep, finish }: { step: number; name: string;
 
 const styles = StyleSheet.create({
   card: {
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
     position: 'absolute',
     backgroundColor: 'rgba(20,23,40,0.92)',
     borderRadius: 16,
@@ -381,6 +420,10 @@ const styles = StyleSheet.create({
   stats: { color: colors.muted, fontFamily: fonts.body, fontSize: 12, fontWeight: '700' },
   questWrap: { position: 'absolute', top: 12, left: 280, right: 300, alignItems: 'center' },
   quest: {
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
     backgroundColor: '#fdf6e3',
     borderRadius: 16,
     paddingHorizontal: 16,
@@ -426,6 +469,10 @@ const styles = StyleSheet.create({
   feed: { position: 'absolute', top: 100, left: 12, gap: 4 },
   feedItem: { color: '#fff', fontSize: 12, fontFamily: fonts.body, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   prompt: {
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
     position: 'absolute',
     bottom: 96,
     alignSelf: 'center',

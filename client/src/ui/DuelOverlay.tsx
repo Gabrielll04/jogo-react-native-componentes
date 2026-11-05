@@ -9,6 +9,7 @@ import type { BuildPayload } from '@shared/types';
 import { playSound } from '../audio/sound';
 import { actions } from '../net/socket';
 import { useStore } from '../state/store';
+import { Appear, Fade } from './Appear';
 import { Btn } from './Btn';
 import { BuildView } from './challenges/BuildView';
 import { CodeEditor } from './CodeEditor';
@@ -51,8 +52,8 @@ export function DuelOverlay() {
   const wait = feedback ? Math.max(0, Math.ceil((feedback.until - now) / 1000)) : 0;
 
   return (
-    <View style={styles.backdrop}>
-      <View style={styles.window}>
+    <Fade style={styles.backdrop}>
+      <Appear style={styles.window}>
         {/* ---------- placar */}
         <View style={styles.header}>
           <View style={styles.side}>
@@ -96,8 +97,8 @@ export function DuelOverlay() {
             {showFeedback ? <WrongFeedback msg={feedback.msg} wait={wait} /> : null}
           </View>
         )}
-      </View>
-    </View>
+      </Appear>
+    </Fade>
   );
 }
 

@@ -16,6 +16,7 @@ import { actions } from '../net/socket';
 import { getState, subscribe } from '../state/store';
 import { bridge, interactKey, type Interactable } from './bridge';
 import { currentObjective, doorOutside, stationLock, WORLD } from './quest';
+import { Ambience } from './ambience';
 import { ensureCharTexture, mentorLook, playerLook, type Dir } from './sprites';
 
 const SPEED = 170; // px/s
@@ -47,6 +48,7 @@ interface Avatar {
   /** textura atual do corpo (muda quando o aluno troca pele/cabelo/roupa) */
   bodyKey: string;
   nextTrail: number;
+  nextDust: number;
   isMe: boolean;
   tx: number;
   ty: number;
@@ -99,6 +101,7 @@ export class WorldScene extends Phaser.Scene {
   private lastPlayers: PublicPlayer[] | null = null;
   private goal: { x: number; y: number } | null = null;
   private trailCount = 0;
+  private ambience!: Ambience;
 
   constructor() {
     super('world');
@@ -144,6 +147,7 @@ export class WorldScene extends Phaser.Scene {
     this.minimap = this.cameras.add(0, 0, 220, Math.round((220 * MAP_H) / MAP_W)).setZoom(220 / (MAP_W * TILE)).setName('mini');
     this.minimap.setBackgroundColor('#1d2b1f').centerOn((MAP_W * TILE) / 2, (MAP_H * TILE) / 2);
     this.placeMinimap();
+    this.ambience = new Ambience(this, this.world, (o) => this.minimap.ignore(o));
     this.scale.on('resize', () => {
       cam.setZoom(this.computeZoom());
       this.placeMinimap();
@@ -221,7 +225,6 @@ export class WorldScene extends Phaser.Scene {
             break;
           case Tile.Water:
             g.fillStyle(0x3d8fd6).fillRect(px, py, TILE, TILE);
-            g.lineStyle(2, 0x7cc0f5).lineBetween(px + 6, py + 12, px + 16, py + 12).lineBetween(px + 14, py + 22, px + 26, py + 22);
             break;
           case Tile.Floor: {
             const id = buildingAt(this.world, px + 1, py + 1) ?? 1;
@@ -460,6 +463,7 @@ export class WorldScene extends Phaser.Scene {
       lookKey: '',
       bodyKey: key,
       nextTrail: 0,
+      nextDust: 0,
       isMe,
       tx: 0,
       ty: 0,
@@ -493,6 +497,12 @@ export class WorldScene extends Phaser.Scene {
     a.label.setY(hat ? -50 : -36);
     a.status.setY(hat ? -42 : -28);
     a.bubble.setY(hat ? -74 : -60);
+  }
+
+  private stepDust(a: Avatar) {
+    if (this.time.now < a.nextDust) return;
+    a.nextDust = this.time.now + 230;
+    this.ambience.dust(a.root.x, a.root.y);
   }
 
   /** rastro: emoji que aparece atrás do personagem e some */
@@ -683,7 +693,11 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     this.animate(this.me, vx, vy);
-    if (vx || vy) this.dropTrail(this.me);
+    if (vx || vy) {
+      this.dropTrail(this.me);
+      this.stepDust(this.me);
+    }
+    this.ambience.update(this.time.now, dt);
     this.miniMe.setPosition(this.me.root.x, this.me.root.y);
 
     // interpolação suave dos outros jogadores
@@ -701,7 +715,10 @@ export class WorldScene extends Phaser.Scene {
       a.label.setVisible(!inside); // sem nomes empilhados em cima dos Mestres
       a.status.setVisible(!inside);
       a.title.setVisible(!inside);
-      if (!inside && Math.abs(dx) + Math.abs(dy) > 0.3) this.dropTrail(a);
+      if (!inside && Math.abs(dx) + Math.abs(dy) > 0.3) {
+        this.dropTrail(a);
+        this.stepDust(a);
+      }
     }
     for (const a of [this.me, ...this.others.values()]) {
       if (a.bubble.visible && this.time.now > a.bubbleUntil) a.bubble.setVisible(false);

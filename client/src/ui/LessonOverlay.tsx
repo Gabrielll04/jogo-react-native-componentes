@@ -10,6 +10,7 @@ import { LESSONS } from '../lessons';
 import { quoted, type LessonState, type Val } from '../lessons/types';
 import { lessonComplete } from '../net/socket';
 import { useStore } from '../state/store';
+import { Appear, Fade } from './Appear';
 import { Btn } from './Btn';
 import { CodeView } from './CodeView';
 import { CompCard } from './CompCard';
@@ -43,8 +44,8 @@ export function LessonOverlay({ component, onClose }: { component: string; onClo
     });
 
   return (
-    <View style={styles.backdrop}>
-      <View style={[styles.window, { borderColor: mod.color }]}>
+    <Fade style={styles.backdrop}>
+      <Appear style={[styles.window, { borderColor: mod.color }]}>
         {/* ---------- cabeçalho */}
         <View style={[styles.header, { backgroundColor: mod.color }]}>
           <Text style={styles.headerTitle}>
@@ -72,8 +73,8 @@ export function LessonOverlay({ component, onClose }: { component: string; onClo
           {step === 2 ? <Quiz lesson={lesson} onNext={() => setStep(3)} /> : null}
           {step === 3 ? <Reward component={component} firstTime={!wasLearned} onClose={onClose} /> : null}
         </ScrollView>
-      </View>
-    </View>
+      </Appear>
+    </Fade>
   );
 }
 

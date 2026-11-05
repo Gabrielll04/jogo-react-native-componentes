@@ -51,6 +51,8 @@ export function Btn(props: {
           justifyContent: 'center',
           filter: hovered && !props.disabled ? 'brightness(1.08)' : undefined,
           cursor: props.disabled ? 'not-allowed' : 'pointer',
+          transitionProperty: 'filter, opacity, background-color',
+          transitionDuration: '120ms',
         },
         props.disabled && { opacity: 0.45 },
         props.style,

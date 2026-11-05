@@ -9,6 +9,7 @@ import type { BuildPayload } from '@shared/types';
 import { playSound } from '../audio/sound';
 import { actions } from '../net/socket';
 import { setState, useStore } from '../state/store';
+import { Appear, Fade } from './Appear';
 import { Btn } from './Btn';
 import { BuildView } from './challenges/BuildView';
 import { CodeTaskEditor, Countdown, WrongFeedback } from './DuelOverlay';
@@ -50,8 +51,8 @@ export function RaceOverlay() {
   const showFb = fb && now - fb.at < 6000 && !mine;
 
   return (
-    <View style={styles.backdrop}>
-      <View style={styles.window}>
+    <Fade style={styles.backdrop}>
+      <Appear style={styles.window}>
         <View style={styles.header}>
           <Text style={styles.title}>🏁 Corrida da turma · {MODE_LABEL[race.mode]}</Text>
           <Text style={styles.timer}>{!started ? 'preparar…' : ended ? 'fim!' : `⏱ ${mmss(race.endAt - now)}`}</Text>
@@ -124,8 +125,8 @@ export function RaceOverlay() {
             </Text>
           </View>
         </View>
-      </View>
-    </View>
+      </Appear>
+    </Fade>
   );
 }
 
