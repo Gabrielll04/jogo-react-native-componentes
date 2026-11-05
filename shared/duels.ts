@@ -12,6 +12,7 @@
  */
 import { analyzeCode, findCodeNode, type CodeAnalysis, type CodeNode } from './codecheck';
 import { compareTree, countNodes } from './jsx';
+import { generateTask, parseGenId, randomGenerated } from './taskgen';
 import type { UIBlock, UINode } from './types';
 
 export type DuelMode = 'blocks' | 'code';
@@ -221,11 +222,21 @@ const CODE: CodeTask[] = [
 
 export const DUEL_TASKS: DuelTask[] = [...BLOCKS, ...CODE];
 
-export const duelTask = (id: string) => DUEL_TASKS.find((t) => t.id === id);
+/** Tarefa pelo id: as escritas à mão acima ou uma gerada (ids "g-…", ver taskgen.ts). */
+export function duelTask(id: string): DuelTask | undefined {
+  const fixed = DUEL_TASKS.find((t) => t.id === id);
+  if (fixed) return fixed;
+  const g = parseGenId(id);
+  return g ? generateTask(g.mode, g.level, g.seed) : undefined;
+}
 
-export function randomDuelTask(mode: DuelMode, avoid?: string) {
-  const pool = DUEL_TASKS.filter((t) => t.mode === mode && t.id !== avoid);
-  return pool[Math.floor(Math.random() * pool.length)];
+/** Sorteia: na maioria das vezes uma tela gerada (sempre diferente), às vezes uma das clássicas. */
+export function randomDuelTask(mode: DuelMode, avoid?: string): DuelTask {
+  if (Math.random() < 0.2) {
+    const pool = DUEL_TASKS.filter((t) => t.mode === mode && t.id !== avoid);
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+  return randomGenerated(mode);
 }
 
 /**

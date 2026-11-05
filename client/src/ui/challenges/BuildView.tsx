@@ -262,13 +262,13 @@ export function BuildView({ p, submit, locked, wait = 0 }: { p: BuildPayload; su
             <View style={{ alignItems: 'center', gap: 6 }}>
               <Text style={[styles.colTitle, { color: colors.gold }]}>🎯 Objetivo</Text>
               <PhoneFrame width={220} height={360}>
-                <RenderScreen root={p.target} styles={p.styles} pad={noStyles} />
+                <RenderScreen root={p.target} styles={p.styles} pad={noStyles} wire={noStyles} />
               </PhoneFrame>
             </View>
             <View style={{ alignItems: 'center', gap: 6 }}>
               <Text style={[styles.colTitle, { color: colors.accent }]}>📱 Seu app</Text>
               <PhoneFrame width={220} height={360}>
-                <RenderScreen root={root ? strip(root) : null} styles={p.styles} pad={noStyles} />
+                <RenderScreen root={root ? strip(root) : null} styles={p.styles} pad={noStyles} wire={noStyles} />
               </PhoneFrame>
             </View>
           </View>

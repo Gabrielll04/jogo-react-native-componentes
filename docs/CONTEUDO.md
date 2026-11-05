@@ -188,7 +188,12 @@ Depois do acerto o aluno vê "🔍 Por trás da tela". Para quizzes com `demo`, 
 
 ## 6. Tarefas de duelo ⚔️
 
-Ficam em `shared/duels.ts` (lista `DUEL_TASKS`); o servidor sorteia uma do modo escolhido.
+Na maioria das partidas a tarefa é **gerada** (`shared/taskgen.ts`): tema (login, compras, perfil,
+clima…), componentes, textos e estrutura são sorteados, em 3 níveis de exigência (1: um componente;
+2: uma caixa com 2–3 componentes; 3: caixas dentro de caixas e, no código, estilo e/ou `export default`).
+O id da tarefa (`g-code-2-123456`) é a semente: cliente e servidor geram a mesma tarefa.
+Temas e textos ficam em `THEMES`. Em ~20% das partidas sai uma das tarefas escritas à mão abaixo
+(`DUEL_TASKS` em `shared/duels.ts`).
 
 **Blocos** — uma tela-objetivo SEM estilos (só estrutura) e os blocos disponíveis:
 ```ts

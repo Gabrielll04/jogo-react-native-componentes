@@ -13,24 +13,28 @@ function LiveSwitch() {
   return <Switch value={on} onValueChange={setOn} />;
 }
 
-function renderChildren(node: UINode, styles: Styles, key: string): ReactNode {
-  return (node.children ?? []).map((c, i) => <RenderNode key={`${key}-${i}`} node={c} styles={styles} path={`${key}-${i}`} />);
+function renderChildren(node: UINode, styles: Styles, key: string, wire?: boolean): ReactNode {
+  return (node.children ?? []).map((c, i) => <RenderNode key={`${key}-${i}`} node={c} styles={styles} path={`${key}-${i}`} wire={wire} />);
 }
 
-export function RenderNode({ node, styles, path = 'r' }: { node: UINode; styles: Styles; path?: string }) {
-  const st = node.style ? styles[node.style] : undefined;
+/** contorno discreto das caixas internas quando a tela não tem estilos (duelos/corrida): mostra o agrupamento */
+const WIRE = { borderWidth: 1, borderStyle: 'dashed', borderColor: '#b9c3dd', borderRadius: 8, padding: 6, gap: 6 } as const;
+
+export function RenderNode({ node, styles, path = 'r', wire }: { node: UINode; styles: Styles; path?: string; wire?: boolean }) {
+  const own = node.style ? styles[node.style] : undefined;
+  const st = wire && path !== 'r' && ['View', 'Pressable', 'ScrollView', 'SafeAreaView'].includes(node.type) ? { ...WIRE, ...own } : own;
   switch (node.type) {
     case 'SafeAreaView':
       // simula a área segura: empurra o conteúdo para baixo do notch
-      return <View style={[{ flex: 1, paddingTop: 34 }, st, { paddingTop: 34 + Number(st?.padding ?? 0) }]}>{renderChildren(node, styles, path)}</View>;
+      return <View style={[{ flex: 1, paddingTop: 34 }, st, { paddingTop: 34 + Number(st?.padding ?? 0) }]}>{renderChildren(node, styles, path, wire)}</View>;
     case 'View':
-      return <View style={st}>{renderChildren(node, styles, path)}</View>;
+      return <View style={st}>{renderChildren(node, styles, path, wire)}</View>;
     case 'ScrollView':
-      return <ScrollView style={st}>{renderChildren(node, styles, path)}</ScrollView>;
+      return <ScrollView style={st}>{renderChildren(node, styles, path, wire)}</ScrollView>;
     case 'Pressable':
       return (
         <Pressable style={({ pressed }: { pressed: boolean }) => [st, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]}>
-          {renderChildren(node, styles, path)}
+          {renderChildren(node, styles, path, wire)}
         </Pressable>
       );
     case 'Text':
@@ -60,7 +64,7 @@ export function RenderNode({ node, styles, path = 'r' }: { node: UINode; styles:
 
 /** Tela inteira (raiz ocupa o celular todo). */
 /** pad: margem abaixo do "notch" (telas de duelo, que não usam estilos) */
-export function RenderScreen({ root, styles, pad }: { root: UINode | null; styles: Styles; pad?: boolean }) {
+export function RenderScreen({ root, styles, pad, wire }: { root: UINode | null; styles: Styles; pad?: boolean; wire?: boolean }) {
   if (!root) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
@@ -70,7 +74,7 @@ export function RenderScreen({ root, styles, pad }: { root: UINode | null; style
   }
   return (
     <View style={[{ flex: 1, backgroundColor: '#fff' }, pad && { paddingTop: 40, paddingHorizontal: 14 }]}>
-      <RenderNode node={pad && root.type === 'View' && !root.style ? { ...root, style: '__pad' } : root} styles={pad ? { ...styles, __pad: { gap: 10 } } : styles} />
+      <RenderNode node={pad && root.type === 'View' && !root.style ? { ...root, style: '__pad' } : root} styles={pad ? { ...styles, __pad: { gap: 10 } } : styles} wire={wire} />
     </View>
   );
 }

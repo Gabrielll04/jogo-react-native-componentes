@@ -139,7 +139,7 @@ export function CodeTaskEditor({ task, onSubmit, wait = 0 }: { task: CodeTask; o
         <Text style={styles.prompt}>{task.prompt}</Text>
         <View style={styles.checklist}>
           {task.checks.map((c, i) => (
-            <View key={c.label} style={styles.check}>
+            <View key={i} style={styles.check}>
               <View style={[styles.box, result.passed[i] && styles.boxOn]}>
                 {result.passed[i] ? <Text style={{ color: '#fff', fontWeight: '900' }}>✓</Text> : null}
               </View>
@@ -167,7 +167,7 @@ export function CodeTaskEditor({ task, onSubmit, wait = 0 }: { task: CodeTask; o
         <Text style={styles.label}>📱 O que o seu código mostra</Text>
         <PhoneFrame width={240} height={380}>
           {result.tree ? (
-            <RenderScreen root={result.tree} styles={result.styles} pad />
+            <RenderScreen root={result.tree} styles={result.styles} pad wire />
           ) : (
             <View style={{ flex: 1, padding: 16, paddingTop: 44 }}>
               <Text style={{ color: '#c62828', fontWeight: '800' }}>⚠️ Ainda não dá para desenhar</Text>
