@@ -211,12 +211,15 @@ Ficam em `shared/duels.ts` (lista `DUEL_TASKS`); o servidor sorteia uma do modo 
     has('Usar um <Text>', (n) => n.type === 'Text'),          // procura na árvore JSX
     has('O texto é "Hello World"', (n) => n.type === 'Text' && norm(n.text) === 'hello world'),
   ],
-  solution: 'export default function App() {\n  return <Text>Hello World</Text>;\n}',
+  solution: "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Hello World</Text>;\n}",
 }
 ```
-O código do aluno passa por um mini-interpretador de JSX (`parseJsx` em `shared/jsx.ts`) que
-entende tags, props (`title="..."`, `source={...}`) e textos; ele gera a prévia no celular e
-a árvore usada pelos `checks`. Mantenha as tarefas **simples** (um ou dois componentes).
+O código do aluno é lido por um parser JavaScript/JSX de verdade (`analyzeCode` em `shared/codecheck.ts`,
+com acorn + acorn-jsx). Só conta como resolvido se o código for válido para o React Native:
+sem erro de sintaxe, componentes importados de `'react-native'`, todo texto dentro de `<Text>`,
+`<Button>` com `title`, tags com o nome certo (maiúsculas contam), variáveis declaradas…
+Os `checks` recebem essa análise (`a.tree`, `a.app.declared`, `a.app.exported`, `a.imports`).
+O mesmo validador é usado no laboratório e na prévia do celular.
 
 Aposta, tempos e XP: constantes no topo de `shared/duels.ts` (`DUEL_STAKE`, `DUEL_INVITE_MS`…).
 

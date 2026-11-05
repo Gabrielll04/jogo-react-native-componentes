@@ -3,7 +3,7 @@
  * feedback a cada tentativa e o resultado (com as moedas ganhas/perdidas).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Animated, Easing, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { checkCode, duelTask, MODE_LABEL, type CodeTask } from '@shared/duels';
 import type { BuildPayload } from '@shared/types';
 import { playSound } from '../audio/sound';
@@ -11,6 +11,7 @@ import { actions } from '../net/socket';
 import { useStore } from '../state/store';
 import { Btn } from './Btn';
 import { BuildView } from './challenges/BuildView';
+import { CodeEditor } from './CodeEditor';
 import { CodeView } from './CodeView';
 import { PhoneFrame } from './PhoneFrame';
 import { colors, fonts } from './theme';
@@ -146,24 +147,14 @@ export function CodeTaskEditor({ task, onSubmit, wait = 0 }: { task: CodeTask; o
             </View>
           ))}
         </View>
-        <View style={styles.editor}>
-          <View style={styles.editorBar}>
-            <Text style={styles.editorTitle}>App.js — digite aqui ✍️</Text>
-          </View>
-          <TextInput
-            value={code}
-            onChangeText={setCode}
-            multiline
-            autoFocus
-            autoCorrect={false}
-            autoCapitalize="none"
-            spellCheck={false}
-            onKeyPress={(e: { nativeEvent: { key: string; ctrlKey?: boolean; metaKey?: boolean } }) => {
-              if (e.nativeEvent.key === 'Enter' && (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) && wait <= 0) onSubmit(code);
-            }}
-            style={styles.input}
-          />
-        </View>
+        <CodeEditor
+          value={code}
+          onChange={setCode}
+          autoFocus
+          errorLine={result.line}
+          problem={result.error}
+          onSubmit={() => wait <= 0 && onSubmit(code)}
+        />
         <Btn
           big
           variant={allOk ? 'primary' : 'blue'}
@@ -176,7 +167,7 @@ export function CodeTaskEditor({ task, onSubmit, wait = 0 }: { task: CodeTask; o
         <Text style={styles.label}>📱 O que o seu código mostra</Text>
         <PhoneFrame width={240} height={380}>
           {result.tree ? (
-            <RenderScreen root={result.tree} styles={{}} pad />
+            <RenderScreen root={result.tree} styles={result.styles} pad />
           ) : (
             <View style={{ flex: 1, padding: 16, paddingTop: 44 }}>
               <Text style={{ color: '#c62828', fontWeight: '800' }}>⚠️ Ainda não dá para desenhar</Text>
@@ -274,18 +265,6 @@ const styles = StyleSheet.create({
   box: { width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   boxOn: { backgroundColor: colors.ok, borderColor: colors.ok },
   checkText: { color: colors.text, fontFamily: fonts.body, fontSize: 15, fontWeight: '700' },
-  editor: { backgroundColor: colors.codeBg, borderRadius: 14, borderWidth: 2, borderColor: '#262c4d', overflow: 'hidden' },
-  editorBar: { backgroundColor: '#181c33', paddingHorizontal: 12, paddingVertical: 8 },
-  editorTitle: { color: colors.muted, fontFamily: fonts.code, fontSize: 12 },
-  input: {
-    minHeight: 230,
-    color: '#e2e8f0',
-    fontFamily: fonts.code,
-    fontSize: 15,
-    lineHeight: 24,
-    padding: 14,
-    outlineStyle: 'none',
-  },
   label: { color: colors.muted, fontFamily: fonts.game, fontWeight: '900', fontSize: 14 },
   feedback: { backgroundColor: '#ffdfe0', padding: 16, gap: 4, borderTopLeftRadius: 18, borderTopRightRadius: 18 },
   feedbackTitle: { color: '#c93636', fontFamily: fonts.display, fontSize: 22 },

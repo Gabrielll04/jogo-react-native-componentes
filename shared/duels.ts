@@ -10,7 +10,8 @@
  * mostrados ao aluno de qualquer forma; quem confere a resposta é o servidor.
  * Para criar tarefas novas basta acrescentar itens em DUEL_TASKS.
  */
-import { compareTree, countNodes, findNode, parseJsx, type ParsedNode } from './jsx';
+import { analyzeCode, findCodeNode, type CodeAnalysis, type CodeNode } from './codecheck';
+import { compareTree, countNodes } from './jsx';
 import type { UIBlock, UINode } from './types';
 
 export type DuelMode = 'blocks' | 'code';
@@ -33,7 +34,7 @@ export interface BlocksTask {
 
 export interface CodeCheck {
   label: string;
-  test: (code: string, tree: ParsedNode | null) => boolean;
+  test: (a: CodeAnalysis) => boolean;
 }
 
 export interface CodeTask {
@@ -127,12 +128,9 @@ const BLOCKS: BlocksTask[] = [
 
 // ---------------------------------------------------------------- código
 
-const declaresApp: CodeCheck = {
-  label: 'Criar um componente chamado App',
-  test: (code) => /\bfunction\s+App\s*\(/.test(code) || /\b(const|let|var)\s+App\s*=/.test(code),
-};
-const has = (label: string, pred: (n: ParsedNode) => boolean): CodeCheck => ({ label, test: (_c, tree) => Boolean(findNode(tree, pred)) });
-const norm = (s?: string) => (s ?? '').trim().toLowerCase().replace(/[!.]/g, '');
+export const declaresApp: CodeCheck = { label: 'Criar um componente chamado App', test: (a) => a.app.declared && a.app.returnsJsx };
+export const has = (label: string, pred: (n: CodeNode) => boolean): CodeCheck => ({ label, test: (a) => Boolean(findCodeNode(a.tree, pred)) });
+export const norm = (s?: string) => (s ?? '').trim().toLowerCase().replace(/[!.,]/g, '');
 
 const CODE: CodeTask[] = [
   {
@@ -141,8 +139,8 @@ const CODE: CodeTask[] = [
     title: 'Componente App',
     prompt: 'Crie um componente chamado App que retorna uma <View />.',
     starter: "import { View } from 'react-native';\n\n",
-    checks: [declaresApp, { label: 'Retornar uma <View>', test: (_c, t) => t?.type === 'View' }],
-    solution: "export default function App() {\n  return <View />;\n}",
+    checks: [declaresApp, { label: 'Retornar uma <View>', test: (a) => a.tree?.type === 'View' }],
+    solution: "import { View } from 'react-native';\n\nexport default function App() {\n  return <View />;\n}",
   },
   {
     id: 'c_hello',
@@ -150,8 +148,8 @@ const CODE: CodeTask[] = [
     title: 'Hello World',
     prompt: 'Complete o componente App para escrever Hello World na tela.',
     starter: "import { Text } from 'react-native';\n\nexport default function App() {\n  return (\n    \n  );\n}",
-    checks: [declaresApp, has('Usar um <Text>', (n) => n.type === 'Text'), has('O texto é "Hello World"', (n) => n.type === 'Text' && norm(n.text).replace(',', '') === 'hello world')],
-    solution: "export default function App() {\n  return <Text>Hello World</Text>;\n}",
+    checks: [declaresApp, has('Usar um <Text>', (n) => n.type === 'Text'), has('O texto é "Hello World"', (n) => n.type === 'Text' && norm(n.text) === 'hello world')],
+    solution: "import { Text } from 'react-native';\n\nexport default function App() {\n  return <Text>Hello World</Text>;\n}",
   },
   {
     id: 'c_button',
@@ -160,7 +158,7 @@ const CODE: CodeTask[] = [
     prompt: 'Crie um App que mostra um <Button> com o título Clique aqui.',
     starter: "import { Button } from 'react-native';\n\n",
     checks: [declaresApp, has('Usar um <Button>', (n) => n.type === 'Button'), has('title="Clique aqui"', (n) => n.type === 'Button' && norm(n.text) === 'clique aqui')],
-    solution: 'export default function App() {\n  return <Button title="Clique aqui" />;\n}',
+    solution: 'import { Button } from \'react-native\';\n\nexport default function App() {\n  return <Button title="Clique aqui" />;\n}',
   },
   {
     id: 'c_nome',
@@ -170,10 +168,10 @@ const CODE: CodeTask[] = [
     starter: "import { View, Text } from 'react-native';\n\nexport default function App() {\n  return (\n\n  );\n}",
     checks: [
       declaresApp,
-      { label: 'Retornar uma <View>', test: (_c, t) => t?.type === 'View' },
-      { label: 'Um <Text> com texto dentro da View', test: (_c, t) => Boolean(t?.type === 'View' && findNode(t, (n) => n.type === 'Text' && Boolean(n.text))) },
+      { label: 'Retornar uma <View>', test: (a) => a.tree?.type === 'View' },
+      { label: 'Um <Text> com texto dentro da View', test: (a) => Boolean(a.tree?.type === 'View' && findCodeNode(a.tree, (n) => n.type === 'Text' && Boolean(n.text))) },
     ],
-    solution: 'export default function App() {\n  return (\n    <View>\n      <Text>Bia</Text>\n    </View>\n  );\n}',
+    solution: 'import { View, Text } from \'react-native\';\n\nexport default function App() {\n  return (\n    <View>\n      <Text>Bia</Text>\n    </View>\n  );\n}',
   },
   {
     id: 'c_export',
@@ -183,10 +181,10 @@ const CODE: CodeTask[] = [
     starter: "import { Text } from 'react-native';\n\n",
     checks: [
       declaresApp,
-      { label: 'Usar export default', test: (code) => /export\s+default\s+(function\s+)?App\b/.test(code) },
+      { label: 'Usar export default', test: (a) => a.app.exported },
       has('Mostrar <Text>Oi</Text>', (n) => n.type === 'Text' && norm(n.text) === 'oi'),
     ],
-    solution: 'export default function App() {\n  return <Text>Oi</Text>;\n}',
+    solution: 'import { Text } from \'react-native\';\n\nexport default function App() {\n  return <Text>Oi</Text>;\n}',
   },
   {
     id: 'c_input',
@@ -195,7 +193,7 @@ const CODE: CodeTask[] = [
     prompt: 'Crie um App com um <TextInput> cujo placeholder seja Seu nome.',
     starter: "import { TextInput } from 'react-native';\n\n",
     checks: [declaresApp, has('Usar um <TextInput>', (n) => n.type === 'TextInput'), has('placeholder="Seu nome"', (n) => n.type === 'TextInput' && norm(n.text) === 'seu nome')],
-    solution: 'export default function App() {\n  return <TextInput placeholder="Seu nome" />;\n}',
+    solution: 'import { TextInput } from \'react-native\';\n\nexport default function App() {\n  return <TextInput placeholder="Seu nome" />;\n}',
   },
   {
     id: 'c_dois',
@@ -205,10 +203,10 @@ const CODE: CodeTask[] = [
     starter: "import { View, Text } from 'react-native';\n\n",
     checks: [
       declaresApp,
-      { label: 'Retornar uma <View>', test: (_c, t) => t?.type === 'View' },
-      { label: 'Dois <Text> dentro da View', test: (_c, t) => (t?.children ?? []).filter((n) => n.type === 'Text').length >= 2 },
+      { label: 'Retornar uma <View>', test: (a) => a.tree?.type === 'View' },
+      { label: 'Dois <Text> dentro da View', test: (a) => (a.tree?.children ?? []).filter((n) => n.type === 'Text').length >= 2 },
     ],
-    solution: 'export default function App() {\n  return (\n    <View>\n      <Text>Primeiro</Text>\n      <Text>Segundo</Text>\n    </View>\n  );\n}',
+    solution: 'import { View, Text } from \'react-native\';\n\nexport default function App() {\n  return (\n    <View>\n      <Text>Primeiro</Text>\n      <Text>Segundo</Text>\n    </View>\n  );\n}',
   },
   {
     id: 'c_img',
@@ -217,7 +215,7 @@ const CODE: CodeTask[] = [
     prompt: "Crie um App que mostra uma <Image> com source={require('./avatar.png')}.",
     starter: "import { Image } from 'react-native';\n\n",
     checks: [declaresApp, has('Usar uma <Image>', (n) => n.type === 'Image'), has('Com a prop source', (n) => n.type === 'Image' && Boolean(n.props.source))],
-    solution: "export default function App() {\n  return <Image source={require('./avatar.png')} />;\n}",
+    solution: "import { Image } from 'react-native';\n\nexport default function App() {\n  return <Image source={require('./avatar.png')} />;\n}",
   },
 ];
 
@@ -230,17 +228,20 @@ export function randomDuelTask(mode: DuelMode, avoid?: string) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-/** Confere o código: resultado de cada item do checklist + a árvore para a prévia. */
+/**
+ * Confere o código: cada item do checklist + a árvore para a prévia.
+ * Só está resolvido se o código for válido de verdade (sintaxe, imports, texto dentro de <Text>…).
+ */
 export function checkCode(task: CodeTask, code: string) {
-  const parsed = parseJsx(code);
+  const a = analyzeCode(code);
   const passed = task.checks.map((c) => {
     try {
-      return c.test(code, parsed.tree);
+      return !a.syntaxError && c.test(a);
     } catch {
       return false;
     }
   });
-  return { passed, ok: passed.every(Boolean), tree: parsed.tree, error: parsed.error };
+  return { passed, ok: !a.error && passed.every(Boolean), tree: a.tree, styles: a.styles, error: a.error, line: a.syntaxError?.line ?? a.issues[0]?.line };
 }
 
 /** Corrige uma resposta (blocos: árvore · código: texto). null = certo; senão, a dica do que falta. */
@@ -249,8 +250,9 @@ export function judgeTask(task: DuelTask, answer: unknown): string | null {
   const code = typeof answer === 'string' ? answer.slice(0, 4000) : '';
   const r = checkCode(task, code);
   if (r.ok) return null;
+  if (r.error) return r.error;
   const missing = task.checks.filter((_, i) => !r.passed[i]).map((c) => c.label);
-  return r.error ? r.error : `Ainda falta: ${missing.join(' · ')}`;
+  return `Ainda falta: ${missing.join(' · ')}`;
 }
 
 export const MODE_LABEL: Record<DuelMode, string> = { blocks: '🧱 Blocos', code: '⌨️ Código' };

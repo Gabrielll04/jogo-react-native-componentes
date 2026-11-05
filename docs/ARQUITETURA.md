@@ -145,6 +145,9 @@ vale o perfil com mais XP, e o painel marca ⚠️ para o professor renomear.
 - Árvores JSX enviadas no "Monte a tela" têm tamanho limitado (40 nós, 8 níveis).
 - Variantes sorteadas, alternativas embaralhadas a cada envio, chefe troca de pergunta ao errar.
 - Rejogar uma estação concluída dá só 5 XP (treino), evitando "farmar".
+- **Código validado de verdade:** duelos, corrida, laboratório e "Monte a tela" por código passam por
+  um parser JS/JSX real (`shared/codecheck.ts`); erro de sintaxe, import faltando ou texto fora de
+  `<Text>` impedem a resposta de contar, no cliente e no servidor.
 - **Chute:** errar antes de `RULES.GUESS_FAST_MS` (contado desde que a pergunta apareceu ou desde o fim
   da espera anterior) soma `GUESS_PENALTY_MS` ao tempo, tira mais XP e aumenta a espera. Toda resposta
   errada gera uma espera crescente (`WRONG_COOLDOWN_MS`) validada no servidor (`inst.lockUntil`).

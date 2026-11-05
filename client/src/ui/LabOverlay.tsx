@@ -3,10 +3,11 @@
  * O código fica guardado neste navegador.
  */
 import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { parseLab } from '@shared/lab';
 import { actions } from '../net/socket';
 import { Btn } from './Btn';
+import { CodeEditor } from './CodeEditor';
 import { PhoneFrame } from './PhoneFrame';
 import { colors, fonts } from './theme';
 import { RenderScreen } from './uiTree';
@@ -113,8 +114,7 @@ class PreviewBoundary extends Component<{ children: ReactNode; resetKey: string 
 export function LabOverlay({ onClose }: { onClose: () => void }) {
   const [code, setCode] = useState(loadCode);
   const [shown, setShown] = useState(code); // prévia atualiza com um pequeno atraso enquanto digita
-  const sel = useRef({ start: code.length, end: code.length });
-  const [forcedSel, setForcedSel] = useState<{ start: number; end: number } | undefined>();
+  const editor = useRef<{ insert: (text: string) => void } | null>(null);
   const reported = useRef(false);
 
   useEffect(() => {
@@ -137,15 +137,6 @@ export function LabOverlay({ onClose }: { onClose: () => void }) {
     }
   }, [result]);
 
-  const insert = (text: string) => {
-    const { start, end } = sel.current;
-    const next = code.slice(0, start) + text + code.slice(end);
-    setCode(next);
-    const at = start + text.length;
-    sel.current = { start: at, end: at };
-    setForcedSel({ start: at, end: at });
-  };
-
   return (
     <View style={styles.backdrop}>
       <View style={styles.window}>
@@ -165,45 +156,19 @@ export function LabOverlay({ onClose }: { onClose: () => void }) {
                   title={t.name}
                   onPress={() => {
                     setCode(t.code);
-                    sel.current = { start: t.code.length, end: t.code.length };
                   }}
                 />
               ))}
             </View>
             <View style={styles.row}>
               {SNIPPETS.map((s) => (
-                <Btn key={s.label} small variant="blue" title={`+ ${s.label}`} onPress={() => insert(s.code)} />
+                <Btn key={s.label} small variant="blue" title={`+ ${s.label}`} onPress={() => editor.current?.insert(s.code)} />
               ))}
             </View>
-            <View style={styles.editor}>
-              <View style={styles.editorBar}>
-                <Text style={styles.editorTitle}>App.js</Text>
-              </View>
-              <TextInput
-                value={code}
-                onChangeText={setCode}
-                multiline
-                autoCorrect={false}
-                autoCapitalize="none"
-                spellCheck={false}
-                selection={forcedSel}
-                onSelectionChange={(e: { nativeEvent: { selection: { start: number; end: number } } }) => {
-                  sel.current = e.nativeEvent.selection;
-                  if (forcedSel) setForcedSel(undefined);
-                }}
-                onKeyPress={(e: { nativeEvent: { key: string }; preventDefault?: () => void }) => {
-                  if (e.nativeEvent.key === 'Tab') {
-                    e.preventDefault?.();
-                    insert('  ');
-                  }
-                }}
-                style={styles.input}
-              />
-            </View>
-            {result.error ? <Text style={styles.error}>⚠️ {result.error}</Text> : null}
-            {result.warnings.map((w) => (
+            <CodeEditor editorRef={editor} value={code} onChange={setCode} minLines={18} errorLine={result.line} problem={result.error ?? result.warnings[0]} />
+            {result.warnings.slice(1).map((w) => (
               <Text key={w} style={styles.warn}>
-                💡 {w}
+                {w}
               </Text>
             ))}
           </View>
@@ -244,11 +209,6 @@ const styles = StyleSheet.create({
   sub: { flex: 1, minWidth: 240, color: '#c8ffd6', fontFamily: fonts.body, fontSize: 14 },
   cols: { flexDirection: 'row', flexWrap: 'wrap', gap: 20, padding: 18, alignItems: 'flex-start' },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  editor: { backgroundColor: colors.codeBg, borderRadius: 14, borderWidth: 2, borderColor: '#262c4d', overflow: 'hidden' },
-  editorBar: { backgroundColor: '#181c33', paddingHorizontal: 12, paddingVertical: 8 },
-  editorTitle: { color: colors.muted, fontFamily: fonts.code, fontSize: 12 },
-  input: { minHeight: 380, color: '#e2e8f0', fontFamily: fonts.code, fontSize: 14, lineHeight: 22, padding: 14, outlineStyle: 'none' },
-  error: { color: '#ffb4b4', fontFamily: fonts.body, fontSize: 14, fontWeight: '700' },
   warn: { color: colors.warn, fontFamily: fonts.body, fontSize: 13 },
   label: { color: colors.muted, fontFamily: fonts.game, fontWeight: '900', fontSize: 14 },
   ideas: { backgroundColor: '#1a1f3a', borderRadius: 14, padding: 12, gap: 6, alignSelf: 'stretch' },
