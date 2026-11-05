@@ -75,6 +75,8 @@ const clone = (n: ENode): ENode => ({ ...n, children: n.children?.map(clone) });
 export function BuildView({ p, submit, locked, wait = 0 }: { p: BuildPayload; submit: (a: ChallengeAnswer) => void; locked: boolean; wait?: number }) {
   const [root, setRoot] = useState<ENode | null>(null);
   const [sel, setSel] = useState<number | null>(null);
+  /** trocando o bloco selecionado por outro (sem perder o que está dentro dele) */
+  const [swapping, setSwapping] = useState(false);
   const lines = useMemo(() => (root ? toLines(root) : []), [root]);
   const selected = findNode(root, sel);
   const styleNames = Object.keys(p.styles);
@@ -110,6 +112,26 @@ export function BuildView({ p, submit, locked, wait = 0 }: { p: BuildPayload; su
     if (isContainer(node.type) || !isContainer(target.type)) setSel(node.uid);
   };
 
+  const canSwapTo = (b: UIBlock) => {
+    if (!selected) return false;
+    if (selected.children?.length && !isContainer(b.type)) return false; // os filhos não teriam onde ficar
+    return selected.type !== b.type || selected.text !== b.text;
+  };
+
+  const swap = (b: UIBlock) => {
+    if (!canSwapTo(b)) return;
+    playSound('click');
+    mutate((r) => {
+      const n = findNode(r, sel);
+      if (!n) return;
+      n.type = b.type;
+      n.text = b.text;
+      n.children = isContainer(b.type) ? (n.children ?? []) : undefined;
+      if (['Switch', 'Button'].includes(b.type)) n.style = undefined;
+    });
+    setSwapping(false);
+  };
+
   const remove = (uid: number) => {
     if (!root) return;
     if (root.uid === uid) {
@@ -142,6 +164,7 @@ export function BuildView({ p, submit, locked, wait = 0 }: { p: BuildPayload; su
     });
 
   const selectedLine = lines.findIndex((l) => l.uid === sel && l.open);
+  const isSwapping = swapping && Boolean(selected);
   const where = selected ? (isContainer(selected.type) ? `dentro de <${selected.type}>` : `depois de <${selected.type}>`) : 'como raiz da tela';
 
   const styleSheetCode =
@@ -158,14 +181,30 @@ export function BuildView({ p, submit, locked, wait = 0 }: { p: BuildPayload; su
         {/* ---------- paleta */}
         <View style={styles.palette}>
           <Text style={styles.colTitle}>🧱 Blocos</Text>
-          <Text style={styles.hint}>Clique para inserir {where}</Text>
+          {isSwapping ? (
+            <View style={styles.swapBar}>
+              <Text style={[styles.hint, { color: colors.text, flex: 1 }]}>
+                Trocar <Text style={{ fontFamily: fonts.code, color: colors.codeTag }}>{`<${selected!.type}>`}</Text> por:
+              </Text>
+              <Mini label="✕" onPress={() => setSwapping(false)} />
+            </View>
+          ) : (
+            <Text style={styles.hint}>Clique para inserir {where}</Text>
+          )}
           {p.blocks.map((b) => {
             const cat = CATEGORY[b.type] ?? { color: '#888', label: '' };
+            const off = isSwapping && !canSwapTo(b);
             return (
               <Pressable
                 key={b.id}
-                onPress={() => insert(b)}
-                style={({ hovered }: { hovered?: boolean }) => [styles.block, { backgroundColor: cat.color }, hovered && { filter: 'brightness(1.12)' }]}
+                disabled={off}
+                onPress={() => (isSwapping ? swap(b) : insert(b))}
+                style={({ hovered }: { hovered?: boolean }) => [
+                  styles.block,
+                  { backgroundColor: cat.color },
+                  hovered && !off && { filter: 'brightness(1.12)' },
+                  off && { opacity: 0.35 },
+                ]}
               >
                 <Text style={styles.blockText} numberOfLines={1}>
                   {b.text !== undefined && b.type === 'Text' ? `<Text>${b.text}</Text>` : b.text ? `<${b.type}> ${b.text}` : `<${b.type}>`}
@@ -184,10 +223,15 @@ export function BuildView({ p, submit, locked, wait = 0 }: { p: BuildPayload; su
             minHeight={160}
             code={lines.length ? lines.map((l) => l.text).join('\n') : '// clique em um bloco para começar'}
             selectedLine={selectedLine}
-            onLinePress={(i) => lines[i] && setSel(lines[i].uid)}
+            onLinePress={(i) => {
+              if (!lines[i]) return;
+              if (lines[i].uid !== sel) setSwapping(false);
+              setSel(lines[i].uid);
+            }}
             renderLineActions={(i) =>
               lines[i] && lines[i].open && lines[i].uid === sel ? (
                 <View style={{ flexDirection: 'row', gap: 4 }}>
+                  <Mini label="⇄" active={swapping} title="Trocar componente" onPress={() => setSwapping((v) => !v)} />
                   <Mini label="↑" onPress={() => move(lines[i].uid, -1)} />
                   <Mini label="↓" onPress={() => move(lines[i].uid, 1)} />
                   <Mini label="✕" danger onPress={() => remove(lines[i].uid)} />
@@ -235,10 +279,15 @@ export function BuildView({ p, submit, locked, wait = 0 }: { p: BuildPayload; su
   );
 }
 
-function Mini({ label, onPress, danger }: { label: string; onPress: () => void; danger?: boolean }) {
+function Mini({ label, onPress, danger, active, title }: { label: string; onPress: () => void; danger?: boolean; active?: boolean; title?: string }) {
   return (
-    <Pressable onPress={onPress} style={{ width: 24, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: danger ? colors.bad : colors.panel3 }}>
-      <Text style={{ color: '#fff', fontWeight: '800', fontSize: 12 }}>{label}</Text>
+    <Pressable
+      onPress={onPress}
+      accessibilityLabel={title}
+      title={title}
+      style={{ width: 24, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: danger ? colors.bad : active ? colors.gold : colors.panel3 }}
+    >
+      <Text style={{ color: active ? '#3b2a00' : '#fff', fontWeight: '800', fontSize: 12 }}>{label}</Text>
     </Pressable>
   );
 }
@@ -249,6 +298,7 @@ const styles = StyleSheet.create({
   palette: { width: 230, gap: 8 },
   colTitle: { color: colors.text, fontFamily: fonts.game, fontWeight: '900', fontSize: 17 },
   hint: { color: colors.muted, fontFamily: fonts.body, fontSize: 12 },
+  swapBar: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#3a2f0a', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   block: { borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, borderBottomWidth: 4, borderBottomColor: 'rgba(0,0,0,0.3)' },
   blockText: { color: '#fff', fontFamily: fonts.code, fontWeight: '700', fontSize: 13 },
   blockCat: { color: 'rgba(255,255,255,0.8)', fontFamily: fonts.body, fontSize: 11 },
