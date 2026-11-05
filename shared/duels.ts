@@ -21,8 +21,6 @@ export const DUEL_STAKE = 10; // moedas em jogo
 export const DUEL_INVITE_MS = 30_000; // tempo para aceitar o convite
 export const DUEL_COUNTDOWN_MS = 3_500; // 3, 2, 1, já!
 export const DUEL_MAX_MS = 4 * 60_000; // depois disso: empate
-export const DUEL_WIN_XP = 20;
-export const DUEL_PLAY_XP = 5;
 
 export interface BlocksTask {
   id: string;
@@ -237,6 +235,33 @@ export function randomDuelTask(mode: DuelMode, avoid?: string): DuelTask {
     return pool[Math.floor(Math.random() * pool.length)];
   }
   return randomGenerated(mode);
+}
+
+// ---------------------------------------------------------------- recompensas
+// Escrever o código vale mais que montar com blocos, e telas mais exigentes valem mais.
+
+export const taskLevel = (taskId: string): 1 | 2 | 3 => parseGenId(taskId)?.level ?? 1;
+
+export function duelRewards(taskId: string) {
+  const mode = duelTask(taskId)?.mode ?? 'blocks';
+  const i = taskLevel(taskId) - 1;
+  return mode === 'code'
+    ? { winXp: [30, 40, 55][i], playXp: 10, bonusCoins: [5, 8, 12][i] }
+    : { winXp: [15, 20, 25][i], playXp: 5, bonusCoins: 0 };
+}
+
+const RACE_BASE = [
+  { xp: 40, coins: 20 },
+  { xp: 30, coins: 15 },
+  { xp: 25, coins: 10 },
+];
+const RACE_FINISH = { xp: 15, coins: 5 };
+
+/** Prêmio da corrida pela colocação (1 = primeiro lugar). */
+export function racePrize(taskId: string, place: number) {
+  const base = RACE_BASE[place - 1] ?? RACE_FINISH;
+  const mult = (duelTask(taskId)?.mode === 'code' ? 1.5 : 1) * [1, 1.2, 1.4][taskLevel(taskId) - 1];
+  return { xp: Math.round(base.xp * mult), coins: Math.round(base.coins * mult) };
 }
 
 /**

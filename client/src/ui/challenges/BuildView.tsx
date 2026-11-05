@@ -4,10 +4,12 @@
  */
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { analyzeCode } from '@shared/codecheck';
 import { isContainer, openTag } from '@shared/jsx';
 import type { BuildPayload, ChallengeAnswer, UIBlock, UINode } from '@shared/types';
 import { playSound } from '../../audio/sound';
 import { Btn } from '../Btn';
+import { CodeEditor } from '../CodeEditor';
 import { CodeView } from '../CodeView';
 import { PhoneFrame } from '../PhoneFrame';
 import { colors, fonts } from '../theme';
@@ -72,7 +74,21 @@ function findNode(root: ENode | null, uid: number | null): ENode | null {
 
 const clone = (n: ENode): ENode => ({ ...n, children: n.children?.map(clone) });
 
-export function BuildView({ p, submit, locked, wait = 0 }: { p: BuildPayload; submit: (a: ChallengeAnswer) => void; locked: boolean; wait?: number }) {
+export function BuildView({
+  p,
+  submit,
+  locked,
+  wait = 0,
+  allowCode = false,
+}: {
+  p: BuildPayload;
+  submit: (a: ChallengeAnswer) => void;
+  locked: boolean;
+  wait?: number;
+  /** terminais "Monte a tela": também dá para escrever o JSX (vale mais) */
+  allowCode?: boolean;
+}) {
+  const [tab, setTab] = useState<'blocks' | 'code'>('blocks');
   const [root, setRoot] = useState<ENode | null>(null);
   const [sel, setSel] = useState<number | null>(null);
   /** trocando o bloco selecionado por outro (sem perder o que está dentro dele) */
@@ -174,9 +190,32 @@ export function BuildView({ p, submit, locked, wait = 0 }: { p: BuildPayload; su
       .join('\n') +
     '\n});';
 
+  const tabs = allowCode ? (
+    <View style={styles.tabs}>
+      <Pressable onPress={() => setTab('blocks')} style={[styles.tab, tab === 'blocks' && styles.tabOn]}>
+        <Text style={[styles.tabText, tab === 'blocks' && styles.tabTextOn]}>🧱 Blocos</Text>
+      </Pressable>
+      <Pressable onPress={() => setTab('code')} style={[styles.tab, tab === 'code' && styles.tabOn]}>
+        <Text style={[styles.tabText, tab === 'code' && styles.tabTextOn]}>⌨️ Escrever o código</Text>
+        <Text style={[styles.tabBonus, tab === 'code' && { color: '#5a3d00' }]}>+50% XP</Text>
+      </Pressable>
+    </View>
+  ) : null;
+
+  if (allowCode && tab === 'code') {
+    return (
+      <View style={{ gap: 14 }}>
+        <Text style={styles.prompt}>{p.prompt}</Text>
+        {tabs}
+        <CodeBuild p={p} submit={submit} locked={locked} wait={wait} styleSheetCode={styleSheetCode} />
+      </View>
+    );
+  }
+
   return (
     <View style={{ gap: 14 }}>
       <Text style={styles.prompt}>{p.prompt}</Text>
+      {tabs}
       <View style={styles.cols}>
         {/* ---------- paleta */}
         <View style={styles.palette}>
@@ -279,6 +318,46 @@ export function BuildView({ p, submit, locked, wait = 0 }: { p: BuildPayload; su
   );
 }
 
+/** "Monte a tela" escrevendo o JSX: o servidor valida o código e compara a tela que ele desenha. */
+function CodeBuild({ p, submit, locked, wait, styleSheetCode }: { p: BuildPayload; submit: (a: ChallengeAnswer) => void; locked: boolean; wait: number; styleSheetCode: string }) {
+  const [code, setCode] = useState(
+    () => `import { StyleSheet } from 'react-native';\n\nexport default function App() {\n  return (\n    \n  );\n}\n\n${styleSheetCode}\n`
+  );
+  const a = useMemo(() => analyzeCode(code), [code]);
+  const send = () => !locked && wait <= 0 && submit({ code });
+  return (
+    <View style={styles.cols}>
+      <View style={{ flex: 1, minWidth: 420, gap: 10 }}>
+        <CodeEditor value={code} onChange={setCode} title="MinhaTela.js" minLines={16} errorLine={a.syntaxError?.line ?? a.issues[0]?.line} problem={a.error} onSubmit={send} />
+      </View>
+      <View style={{ gap: 10, alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <View style={{ alignItems: 'center', gap: 6 }}>
+            <Text style={[styles.colTitle, { color: colors.gold }]}>🎯 Objetivo</Text>
+            <PhoneFrame width={220} height={360}>
+              <RenderScreen root={p.target} styles={p.styles} />
+            </PhoneFrame>
+          </View>
+          <View style={{ alignItems: 'center', gap: 6 }}>
+            <Text style={[styles.colTitle, { color: colors.accent }]}>📱 Seu app</Text>
+            <PhoneFrame width={220} height={360}>
+              <RenderScreen root={a.syntaxError ? null : a.tree} styles={{ ...p.styles, ...a.styles }} />
+            </PhoneFrame>
+          </View>
+        </View>
+        <Btn
+          big
+          primary
+          title={wait > 0 ? `▶ Executar e conferir (${wait})` : '▶ Executar e conferir  (Ctrl+Enter)'}
+          disabled={locked || wait > 0}
+          onPress={send}
+          style={{ alignSelf: 'stretch' }}
+        />
+      </View>
+    </View>
+  );
+}
+
 function Mini({ label, onPress, danger, active, title }: { label: string; onPress: () => void; danger?: boolean; active?: boolean; title?: string }) {
   return (
     <Pressable
@@ -298,6 +377,12 @@ const styles = StyleSheet.create({
   palette: { width: 230, gap: 8 },
   colTitle: { color: colors.text, fontFamily: fonts.game, fontWeight: '900', fontSize: 17 },
   hint: { color: colors.muted, fontFamily: fonts.body, fontSize: 12 },
+  tabs: { flexDirection: 'row', gap: 8 },
+  tab: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: colors.panel2, borderWidth: 2, borderColor: colors.line },
+  tabOn: { backgroundColor: colors.gold, borderColor: '#c9a227' },
+  tabText: { color: colors.text, fontFamily: fonts.game, fontWeight: '900', fontSize: 14 },
+  tabTextOn: { color: '#1d2340' },
+  tabBonus: { color: colors.gold, fontFamily: fonts.game, fontWeight: '900', fontSize: 12 },
   swapBar: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#3a2f0a', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
   block: { borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, borderBottomWidth: 4, borderBottomColor: 'rgba(0,0,0,0.3)' },
   blockText: { color: '#fff', fontFamily: fonts.code, fontWeight: '700', fontSize: 13 },

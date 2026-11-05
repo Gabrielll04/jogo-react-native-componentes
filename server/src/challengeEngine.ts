@@ -5,7 +5,8 @@
 import { randomUUID } from 'node:crypto';
 import { compareTree, countNodes, treeToCode } from '../../shared/jsx';
 import { COMPONENTS, findStation, MODULES } from '../../shared/modules';
-import type { BossState, ChallengeAnswer, ChallengePayload, ChallengeType, ChallengeView } from '../../shared/types';
+import { analyzeCode } from '../../shared/codecheck';
+import type { BossState, ChallengeAnswer, ChallengePayload, ChallengeType, ChallengeView, UINode } from '../../shared/types';
 import { DEMO_CODE, STATION_CONTENT, type BugDef, type BuildDef, type MatchDef, type QuizDef } from './content/challenges';
 
 export interface Round {
@@ -42,6 +43,8 @@ export interface Instance {
   guesses: number;
   /** tempo extra somado ao tempo final */
   penaltyMs: number;
+  /** "Monte a tela" resolvido escrevendo o código (vale mais) */
+  byCode?: boolean;
   round: Round;
   boss?: BossState & { pool: (QuizDef | BugDef)[] };
 }
@@ -122,13 +125,25 @@ function buildRound(def: BuildDef): Round {
     '\n});';
   return {
     payload: { kind: 'build', prompt: def.prompt, target: def.target, blocks: shuffle(def.blocks), styles: def.styles },
-    // compara a árvore enviada com a tela-objetivo (limite de tamanho por segurança)
-    check: (a) => countNodes(a) <= 40 && compareTree(a, def.target) === null,
-    wrongFeedback: (a) => (countNodes(a) > 40 ? 'Tela grande demais!' : compareTree(a, def.target) ?? ''),
+    // blocos: compara a árvore enviada · código: valida o código de verdade e compara a tela que ele desenha
+    check: (a) => judgeBuild(a, def.target) === null,
+    wrongFeedback: (a) => judgeBuild(a, def.target) ?? '',
     explanation: def.explanation,
     hints: def.hints,
     reveal: treeToCode(def.target) + '\n\n' + styleSheet,
   };
+}
+
+/** resposta escrita em código no "Monte a tela" */
+export const isCodeAnswer = (a: ChallengeAnswer): a is { code: string } =>
+  typeof a === 'object' && a !== null && typeof (a as Record<string, unknown>).code === 'string';
+
+function judgeBuild(a: ChallengeAnswer, target: UINode): string | null {
+  if (isCodeAnswer(a)) {
+    const r = analyzeCode(a.code.slice(0, 8000));
+    return r.error ?? compareTree(r.tree, target);
+  }
+  return countNodes(a) > 40 ? 'Tela grande demais!' : compareTree(a, target);
 }
 
 function roundFromDef(def: QuizDef | BugDef): Round {

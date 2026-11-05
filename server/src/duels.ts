@@ -12,9 +12,8 @@ import {
   DUEL_COUNTDOWN_MS,
   DUEL_INVITE_MS,
   DUEL_MAX_MS,
-  DUEL_PLAY_XP,
   DUEL_STAKE,
-  DUEL_WIN_XP,
+  duelRewards,
   duelTask,
   judgeTask,
   MODE_LABEL,
@@ -126,15 +125,18 @@ function finish(d: Duel, winnerId: string | null, reason: DuelEnd['reason']) {
   const lp = loserId ? state.progress[loserId] : undefined;
 
   // aposta: o vencedor leva até DUEL_STAKE moedas do perdedor (quem tem 0 continua com 0)
+  // + prêmio do jogo para quem resolve escrevendo código (não sai do perdedor)
+  const rw = duelRewards(d.taskId);
+  const bonus = reason === 'solved' ? rw.bonusCoins : 0;
   let amount = 0;
   if (wp && lp) {
     amount = Math.min(DUEL_STAKE, Math.max(0, lp.coins));
     lp.coins -= amount;
-    wp.coins += amount;
-    wp.xp += DUEL_WIN_XP;
+    wp.coins += amount + bonus;
+    wp.xp += rw.winXp;
     wp.duelsWon += 1;
     lp.duelsLost += 1;
-    if (reason === 'solved') lp.xp += DUEL_PLAY_XP; // participou até o fim
+    if (reason === 'solved') lp.xp += rw.playXp; // participou até o fim
   }
 
   for (const pid of [d.a, d.b]) {
@@ -147,8 +149,8 @@ function finish(d: Duel, winnerId: string | null, reason: DuelEnd['reason']) {
       result,
       reason,
       opponentName: nameOf(other(d, pid)),
-      coins: result === 'win' ? amount : result === 'lose' ? -amount : 0,
-      xp: result === 'win' ? DUEL_WIN_XP : result === 'lose' && reason === 'solved' ? DUEL_PLAY_XP : 0,
+      coins: result === 'win' ? amount + bonus : result === 'lose' ? -amount : 0,
+      xp: result === 'win' ? rw.winXp : result === 'lose' && reason === 'solved' ? rw.playXp : 0,
       timeMs,
       solution,
     };

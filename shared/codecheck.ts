@@ -284,6 +284,7 @@ export function analyzeCode(source: string): CodeAnalysis {
     const props: Record<string, string> = {};
     const node: CodeNode = { type: name, props };
     let style: StyleObj = {};
+    let sheetName: string | null = null;
     for (const a of el.openingElement.attributes) {
       if (a.type !== 'JSXAttribute') continue;
       const key = a.name.name;
@@ -291,12 +292,20 @@ export function analyzeCode(source: string): CodeAnalysis {
       if (v === null) props[key] = 'true';
       else if (v.type === 'Literal') props[key] = String(v.value);
       else if (v.type === 'JSXExpressionContainer') {
-        if (key === 'style') style = styleOf(v.expression);
+        if (key === 'style') {
+          style = styleOf(v.expression);
+          // style={styles.card}: guarda o NOME do estilo (o "Monte a tela" compara pelo nome)
+          const e = v.expression;
+          if (e.type === 'MemberExpression' && e.object.type === 'Identifier' && e.object.name === styleSheetVar && sheet[e.property.name]) {
+            sheetName = e.property.name;
+          }
+        }
         const t = textOf(v.expression);
         props[key] = t ?? (v.expression.type === 'JSXEmptyExpression' ? '' : '{…}');
       }
     }
-    if (Object.keys(style).length) {
+    if (sheetName) node.style = sheetName;
+    else if (Object.keys(style).length) {
       const k = `__s${styleSeq++}`;
       out.styles[k] = style;
       node.style = k;

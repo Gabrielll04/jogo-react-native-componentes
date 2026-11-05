@@ -17,7 +17,7 @@ O aluno não só responde perguntas: ele **aprende, experimenta e aplica**. Tudo
 2. **Terminais 💻 (praticar)** — liberados quando o aluno aprende todos os componentes do prédio:
    - 🔮 **Quiz** com demonstração viva ("que componente é esse?")
    - 🧩 **Ligue** componente ↔ uso
-   - 🛠️ **Monte a tela**: o aluno escreve o **JSX com blocos**, escolhe estilos do `StyleSheet`
+   - 🛠️ **Monte a tela**: o aluno escreve o **JSX com blocos** (ou digitando o código, que vale +50% XP), escolhe estilos do `StyleSheet`
      e compara o celular dele com a tela-objetivo; o servidor aponta o primeiro erro
      ("Dentro de `<View>` deveria haver 3 componentes…")
    - 🐞 **Conserte o bug** no código
@@ -33,6 +33,8 @@ O aluno não só responde perguntas: ele **aprende, experimenta e aplica**. Tudo
     "Escreva Hello World na tela"…), com checklist ao vivo e um celular mostrando o que o código desenha.
 - A tarefa é **sorteada** e é a mesma para os dois. O convite chega como **notificação no canto com som**:
   o desafiado continua jogando e aceita/recusa quando quiser (expira em 30 s).
+- Código vale mais que blocos: vitória em código dá até +55 XP e moedas extras do jogo; em blocos, até +25 XP.
+  Na corrida, o prêmio de código é 50% maior, e telas mais exigentes valem mais nos dois modos.
 - Contagem 3-2-1; quem acertar primeiro vence e leva **até 10 moedas** do perdedor (quem tem 0 continua com 0).
   Desistir ou sair do jogo conta como derrota; depois de 4 minutos dá empate.
 

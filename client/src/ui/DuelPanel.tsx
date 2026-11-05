@@ -10,9 +10,9 @@ import { Btn } from './Btn';
 import { Overlay } from './Overlay';
 import { colors, fonts } from './theme';
 
-const MODES: { id: DuelMode; emoji: string; title: string; desc: string }[] = [
-  { id: 'blocks', emoji: '🧱', title: 'Blocos', desc: 'Quem recria a tela mais rápido usando os bloquinhos de JSX.' },
-  { id: 'code', emoji: '⌨️', title: 'Código', desc: 'Quem escreve primeiro um componente simples, como "Crie um App que mostra Hello World".' },
+const MODES: { id: DuelMode; emoji: string; title: string; desc: string; reward: string }[] = [
+  { id: 'blocks', emoji: '🧱', title: 'Blocos', desc: 'Recriem a mesma tela com os blocos de JSX.', reward: 'Vitória: até +25 XP' },
+  { id: 'code', emoji: '⌨️', title: 'Código', desc: 'Escrevam o componente pedido, do zero.', reward: 'Vitória: até +55 XP e +12 🪙' },
 ];
 
 export function DuelPanel({ onClose, preselect }: { onClose: () => void; preselect?: string | null }) {
@@ -45,6 +45,7 @@ export function DuelPanel({ onClose, preselect }: { onClose: () => void; presele
             <Text style={{ fontSize: 34 }}>{m.emoji}</Text>
             <Text style={[styles.modeTitle, mode === m.id && { color: '#1d2340' }]}>{m.title}</Text>
             <Text style={[styles.modeDesc, mode === m.id && { color: '#3b3f5c' }]}>{m.desc}</Text>
+            <Text style={[styles.modeReward, mode === m.id && { color: '#5a3d00' }]}>{m.reward}</Text>
           </Pressable>
         ))}
       </View>
@@ -106,6 +107,7 @@ const styles = StyleSheet.create({
   },
   modeOn: { backgroundColor: colors.gold, borderColor: '#c9a227' },
   modeTitle: { color: colors.text, fontFamily: fonts.game, fontWeight: '900', fontSize: 18 },
+  modeReward: { color: colors.gold, fontFamily: fonts.game, fontWeight: '900', fontSize: 13, marginTop: 4 },
   modeDesc: { color: colors.muted, fontFamily: fonts.body, fontSize: 13 },
   player: {
     flexDirection: 'row',

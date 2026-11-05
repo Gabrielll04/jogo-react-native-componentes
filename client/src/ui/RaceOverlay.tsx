@@ -4,7 +4,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { duelTask, MODE_LABEL } from '@shared/duels';
+import { duelTask, MODE_LABEL, racePrize } from '@shared/duels';
 import type { BuildPayload } from '@shared/types';
 import { playSound } from '../audio/sound';
 import { actions } from '../net/socket';
@@ -114,7 +114,14 @@ export function RaceOverlay() {
               ))}
               {!rs?.finishers.length ? <Text style={styles.rankSub}>Ninguém chegou ainda. Seja o primeiro!</Text> : null}
             </ScrollView>
-            <Text style={styles.prizes}>🥇 +40 XP +20🪙 · 🥈 +30 XP +15🪙 · 🥉 +25 XP +10🪙 · quem terminar: +15 XP +5🪙</Text>
+            <Text style={styles.prizes}>
+              {[1, 2, 3, 4]
+                .map((pl) => {
+                  const pr = racePrize(race.taskId, pl);
+                  return `${MEDAL[pl - 1] ?? 'quem terminar:'} +${pr.xp} XP +${pr.coins}🪙`;
+                })
+                .join(' · ')}
+            </Text>
           </View>
         </View>
       </View>

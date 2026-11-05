@@ -21,16 +21,16 @@ export function openTag(node: UINode): string {
     case 'Text':
       return `<Text${st}>${node.text ?? ''}</Text>`;
     case 'Button':
-      return `<Button title="${node.text ?? ''}" onPress={entrar} />`;
+      return `<Button title="${node.text ?? ''}" onPress={() => {}} />`;
     case 'TextInput':
       return `<TextInput placeholder="${node.text ?? ''}"${st} />`;
     case 'Image':
       return `<Image source={require('./avatar.png')}${st} />`;
     case 'Switch':
-      return `<Switch value={lembrar} onValueChange={setLembrar} />`;
+      return `<Switch />`;
     default:
       if (isContainer(node.type)) {
-        const press = node.type === 'Pressable' ? ' onPress={entrar}' : '';
+        const press = node.type === 'Pressable' ? ' onPress={() => {}}' : '';
         return node.children?.length ? `<${node.type}${press}${st}>` : `<${node.type}${press}${st} />`;
       }
       return `<${node.type}${st} />`;
@@ -64,7 +64,8 @@ export function compareTree(student: unknown, target: UINode, where = 'a tela'):
   }
   if (target.text !== undefined && s.text !== target.text) return `Em ${where}, o texto de ${label(s)} está no lugar errado.`;
   if (target.style && s.style !== target.style) {
-    return `${label(s)} ${s.style ? `usa styles.${s.style}` : 'está sem estilo'} — compare com a tela-objetivo.`;
+    const now = !s.style ? 'está sem estilo' : s.style.startsWith('__') ? 'tem um estilo escrito direto (use um do StyleSheet)' : `usa styles.${s.style}`;
+    return `${label(s)} ${now} — compare com a tela-objetivo.`;
   }
   const sc = Array.isArray(s.children) ? s.children : [];
   const tc = target.children ?? [];

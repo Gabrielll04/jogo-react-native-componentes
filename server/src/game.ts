@@ -18,7 +18,7 @@ import type {
   SoundName,
   TeamId,
 } from '../../shared/types';
-import { createInstance, nextBossRound, nextHint, reshuffleRound, toView, type Instance } from './challengeEngine';
+import { createInstance, isCodeAnswer, nextBossRound, nextHint, reshuffleRound, toView, type Instance } from './challengeEngine';
 import { clearAllDuels, playerGone, registerDuelHandlers } from './duels';
 import { raceGone, raceJoined, registerRaceHandlers, stopRace } from './race';
 import { registerShopHandlers } from './shop';
@@ -422,6 +422,7 @@ export function setupGame(server: Server) {
 
       if (correct) {
         inst.streak = 0;
+        if (isCodeAnswer(answer)) inst.byCode = true;
         p.totalCorrect++;
         award(socket.id, p, 'primeiro_acerto');
         if (inst.boss) {
@@ -671,7 +672,9 @@ function completeStation(me: OnlinePlayer, inst: Instance, p: PlayerProgress): A
     // cada chute custa mais que um erro "pensado"
     xp = Math.max(Math.round(base * 0.3), base - inst.wrong * 5 - inst.guesses * 10 - inst.hintsShown.length * 5);
     if (inst.helped) xp = Math.round(xp * 0.8); // ajudado ganha um pouco menos: responder pelo colega não compensa
+    if (inst.byCode) xp = Math.round(xp * 1.5); // escrever o JSX vale mais que montar com blocos
     coins = inst.type === 'boss_challenge' ? (inst.guesses ? 15 : 30) : inst.wrong === 0 ? 10 : inst.guesses ? 2 : 5;
+    if (inst.byCode) coins += 5;
     p.completed[inst.stationId] = {
       at: Date.now(),
       attempts: inst.attempts,
@@ -684,7 +687,7 @@ function completeStation(me: OnlinePlayer, inst: Instance, p: PlayerProgress): A
     me.lastProgressAt = Date.now();
   } else {
     // treino: rejogar dá pouca recompensa (evita "farmar" XP)
-    xp = 5;
+    xp = inst.byCode ? 8 : 5;
     coins = inst.guesses ? 0 : 1;
   }
   p.xp += xp;

@@ -72,7 +72,7 @@ export function ChallengeOverlay() {
                 {p.kind === 'quiz' ? <QuizView p={p} submit={actions.submit} locked={Boolean(sheet)} /> : null}
                 {p.kind === 'bug' ? <BugView p={p} submit={actions.submit} locked={Boolean(sheet)} /> : null}
                 {p.kind === 'match' ? <MatchView p={p} submit={actions.submit} locked={Boolean(sheet)} /> : null}
-                {p.kind === 'build' ? <BuildView p={p} submit={actions.submit} locked={Boolean(sheet)} /> : null}
+                {p.kind === 'build' ? <BuildView p={p} submit={actions.submit} locked={Boolean(sheet)} allowCode /> : null}
               </View>
               {c.allowHints ? (
                 <View style={styles.hints}>

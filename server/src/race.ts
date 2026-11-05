@@ -1,13 +1,13 @@
 /**
  * CORRIDA DA TURMA 🏁 — o professor inicia pelo painel; todos que estão no mapa
  * recebem a MESMA tarefa (blocos ou código). Ranking ao vivo por ordem de chegada.
- *  1º: +40 XP +20 🪙 · 2º: +30 XP +15 🪙 · 3º: +25 XP +10 🪙 · demais que terminarem: +15 XP +5 🪙
+ *  Prêmios em racePrize (shared/duels.ts): 1º/2º/3º e quem terminar; código e tarefas mais exigentes valem mais.
  * Errar dá uma espera crescente (contra o "chute"). A corrida acaba quando o tempo
  * esgota, quando todos terminam ou quando o professor encerra.
  */
 import { randomUUID } from 'node:crypto';
 import type { Socket } from 'socket.io';
-import { duelTask, judgeTask, MODE_LABEL, randomDuelTask, type DuelMode } from '../../shared/duels';
+import { duelTask, judgeTask, MODE_LABEL, racePrize, randomDuelTask, type DuelMode } from '../../shared/duels';
 import { EV, RULES } from '../../shared/events';
 import type { RaceRankEntry, RaceStart, RaceState } from '../../shared/types';
 import { afterProgressChange, award, getIo, notice, onlinePlayers, sound, type OnlinePlayer } from './game';
@@ -15,12 +15,6 @@ import { state } from './state';
 
 export const RACE_COUNTDOWN_MS = 5000;
 export const RACE_MAX_MS = 3 * 60_000;
-const PRIZES = [
-  { xp: 40, coins: 20 },
-  { xp: 30, coins: 15 },
-  { xp: 25, coins: 10 },
-];
-const FINISH_PRIZE = { xp: 15, coins: 5 };
 
 interface Race {
   id: string;
@@ -157,7 +151,7 @@ export function registerRaceHandlers(socket: Socket, getMe: () => OnlinePlayer |
 
     const p = state.progress[me.playerId];
     const place = r.finishers.length + 1;
-    const prize = PRIZES[place - 1] ?? FINISH_PRIZE;
+    const prize = racePrize(r.taskId, place);
     p.xp += prize.xp;
     p.coins += prize.coins;
     me.lastProgressAt = now;
