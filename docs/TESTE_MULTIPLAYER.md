@@ -72,7 +72,7 @@ Leva uns 10 minutos e evita surpresas.
    ✅ "Já tem alguém jogando como Ana agora".
 3. No mapa, aperte **K** (loja), compre um chapéu. ✅ O chapéu aparece na cabeça dela também na janela do Beto.
 4. Aperte **L** (laboratório), escolha "↔️ Lado a lado" e troque `row` por `column`. ✅ O celular muda na hora.
-5. Num terminal, responda errado muito rápido. ✅ "🎲 Isso pareceu um chute!" e o botão "🧠 Pense… Xs".
+5. Num terminal, responda errado muito rápido. ✅ O botão "Tentar de novo" fica com uma contagem; no painel aparece 🎲 no aluno.
 
 ## Teste 8 — corrida e painel
 

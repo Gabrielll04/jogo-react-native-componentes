@@ -103,13 +103,13 @@ export function ConnectScreen() {
             <View style={[styles.status, styles.welcome]}>
               <Text style={styles.welcomeTitle}>👋 Bem-vindo(a) de volta, {saved.name}!</Text>
               <Text style={styles.welcomeText}>
-                Nível {saved.level} · {saved.xp} XP salvos neste computador do professor. Entre para continuar de onde parou.
+                Nível {saved.level} · {saved.xp} XP
               </Text>
               {saved.online ? <Text style={[styles.welcomeText, { color: colors.warn }]}>⚠️ Esse nome está jogando agora em outra aba/computador.</Text> : null}
             </View>
           )
         ) : name.trim().length >= 2 && saved ? (
-          <Text style={[styles.status, { color: colors.muted }]}>✨ Nome novo: vamos criar o seu perfil. Use sempre o mesmo nome para guardar o progresso!</Text>
+          <Text style={[styles.status, { color: colors.muted }]}>Primeira vez por aqui? Use sempre o mesmo nome para continuar seu progresso.</Text>
         ) : null}
 
         <Text style={styles.label}>Cor do avatar</Text>

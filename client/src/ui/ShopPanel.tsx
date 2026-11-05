@@ -26,9 +26,6 @@ export function ShopPanel({ onClose }: { onClose: () => void }) {
             <Preview look={p.equipped} name={p.name} color={p.color} />
             <View style={{ flex: 1, gap: 4, minWidth: 220 }}>
               <Text style={styles.coins}>🪙 {p.coins} moedas</Text>
-              <Text style={styles.muted}>
-                Ganhe moedas aprendendo com os Mestres, vencendo desafios (sem chutar!), corridas e duelos. Itens com 🔒 pedem uma conquista.
-              </Text>
             </View>
           </View>
           <View style={styles.tabs}>

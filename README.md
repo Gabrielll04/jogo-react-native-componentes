@@ -50,11 +50,12 @@ e a cada vez que o servidor inicia é feito um **backup automático** em `server
 
 ## Contra o "chute" 🎲
 
-Errar rápido demais (ex.: menos de 4 s num quiz, 6 s no "Ligue" ou no "Monte a tela") conta como **chute**:
-- **+30 s no tempo final** do desafio (cada erro comum soma +10 s);
+Errar rápido demais (ex.: menos de 4 s num quiz, 6 s no "Ligue" ou no "Monte a tela") conta como **chute**
+(o aluno não é avisado disso; o professor vê no painel):
+- menos XP e moedas ao concluir;
 - uma **espera antes da próxima tentativa** que cresce a cada erro seguido (3 s, 6 s, 10 s, 15 s; +5 s se foi chute),
-  com o botão "🧠 Pense… 5s" enquanto isso;
-- menos XP e moedas ao concluir; o professor vê os chutes no painel.
+  mostrada só como contagem no botão;
+- o tempo registrado no painel soma +30 s por chute e +10 s por erro.
 Nos duelos e na corrida também há espera crescente após cada erro (2 s, 4 s, 6 s, 8 s).
 
 ## Mais diversão 🎉

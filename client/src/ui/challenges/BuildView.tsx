@@ -228,7 +228,7 @@ export function BuildView({ p, submit, locked, wait = 0 }: { p: BuildPayload; su
               </PhoneFrame>
             </View>
           </View>
-          <Btn big primary title={wait > 0 ? `🧠 Pense… ${wait}s` : '▶ Executar e conferir'} disabled={!root || locked || wait > 0} onPress={() => root && submit(strip(root))} style={{ alignSelf: 'stretch' }} />
+          <Btn big primary title={wait > 0 ? `▶ Executar e conferir (${wait})` : '▶ Executar e conferir'} disabled={!root || locked || wait > 0} onPress={() => root && submit(strip(root))} style={{ alignSelf: 'stretch' }} />
         </View>
       </View>
     </View>

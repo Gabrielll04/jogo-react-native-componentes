@@ -112,8 +112,6 @@ export function useSecondsLeft(until: number) {
   return Math.max(0, Math.ceil((until - now) / 1000));
 }
 
-const secs = (ms: number) => `${Math.round(ms / 1000)}s`;
-
 function FeedbackSheet({ r, onContinue }: { r: AnswerResult; onContinue: () => void }) {
   const slide = useRef(new Animated.Value(120)).current;
   const [until] = useState(() => Date.now() + (r.cooldownMs ?? 0));
@@ -126,19 +124,7 @@ function FeedbackSheet({ r, onContinue }: { r: AnswerResult; onContinue: () => v
     <Animated.View style={[styles.sheet, { backgroundColor: good ? '#d7ffb8' : '#ffdfe0', transform: [{ translateY: slide }] }]}>
       <View style={{ flex: 1, minWidth: 280, gap: 6 }}>
         <Text style={[styles.sheetTitle, { color: good ? '#3f8a00' : '#c93636' }]}>{good ? '💥 Acertou!' : '❌ Ainda não…'}</Text>
-        {r.guess ? (
-          <View style={styles.guessBox}>
-            <Text style={styles.guessTitle}>🎲 Isso pareceu um chute!</Text>
-            <Text style={styles.guessText}>
-              Você respondeu rápido demais. Chutar até acertar não ensina nada: cada chute soma +{secs(RULES.GUESS_PENALTY_MS)} no seu tempo e diminui o XP. Leia a
-              explicação e pense antes da próxima tentativa.
-            </Text>
-          </View>
-        ) : null}
         <Text style={styles.sheetText}>{r.explanation}</Text>
-        {!good && r.penaltyMs ? (
-          <Text style={[styles.sheetText, { fontSize: 13, color: '#8a3b3b' }]}>⏱️ Penalidade acumulada neste desafio: +{secs(r.penaltyMs)}</Text>
-        ) : null}
         {r.reveal ? (
           <View style={{ marginTop: 6 }}>
             <Text style={[styles.sheetText, { fontWeight: '800' }]}>🔍 Por trás da tela:</Text>
@@ -149,7 +135,7 @@ function FeedbackSheet({ r, onContinue }: { r: AnswerResult; onContinue: () => v
       <Btn
         big
         variant={good ? 'primary' : 'danger'}
-        title={good ? 'Continuar ▶' : wait > 0 ? `🧠 Pense… ${wait}s` : 'Tentar de novo'}
+        title={good ? 'Continuar ▶' : wait > 0 ? `Tentar de novo (${wait})` : 'Tentar de novo'}
         disabled={!good && wait > 0}
         onPress={onContinue}
       />
@@ -276,14 +262,6 @@ function Finish({ result, title, boss }: { result: AnswerResult; title: string; 
               <Text style={styles.rewardNum}>+{result.coinsGained}</Text>
               <Text style={styles.rewardLbl}>moedas</Text>
             </View>
-            {result.timeMs !== undefined ? (
-              <View style={[styles.rewardBox, result.penaltyMs ? { borderColor: '#c93636' } : null]}>
-                <Text style={styles.rewardNum}>{secs(result.timeMs + (result.penaltyMs ?? 0))}</Text>
-                <Text style={styles.rewardLbl}>
-                  {result.penaltyMs ? `tempo (${secs(result.timeMs)} + ${secs(result.penaltyMs)} de penalidade)` : 'tempo'}
-                </Text>
-              </View>
-            ) : null}
             {result.moduleCompleted ? (
               <View style={[styles.rewardBox, { backgroundColor: '#3a2f0a', borderColor: colors.gold }]}>
                 <Text style={styles.rewardNum}>🎖️</Text>
@@ -291,11 +269,6 @@ function Finish({ result, title, boss }: { result: AnswerResult; title: string; 
               </View>
             ) : null}
           </View>
-        ) : null}
-        {won && result.guesses ? (
-          <Text style={[styles.rewardLbl, { color: '#ffb4b4', fontSize: 14, textAlign: 'center' }]}>
-            🎲 {result.guesses} resposta(s) pareceram chute: você ganhou menos XP e moedas. Da próxima vez, pense antes de responder!
-          </Text>
         ) : null}
         <View style={{ maxWidth: 760, width: '100%', gap: 12 }}>
           <Mascot>
@@ -339,9 +312,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
   },
-  guessBox: { backgroundColor: '#fff3cd', borderRadius: 12, padding: 10, borderLeftWidth: 5, borderLeftColor: '#e0a800', gap: 2 },
-  guessTitle: { color: '#7a5600', fontFamily: fonts.game, fontWeight: '900', fontSize: 16 },
-  guessText: { color: '#5c4300', fontFamily: fonts.body, fontSize: 14 },
   sheetTitle: { fontFamily: fonts.display, fontSize: 26, fontWeight: '700' },
   sheetText: { color: '#1d2340', fontFamily: fonts.body, fontSize: 16, lineHeight: 23 },
   arena: {

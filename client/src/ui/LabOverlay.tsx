@@ -1,6 +1,5 @@
 /**
  * LABORATÓRIO LIVRE 🧪 — o aluno escreve JSX e vê o celular mudar na hora.
- * Sem nota, sem tempo, sem errar: é para experimentar ("e se eu trocar flexDirection?").
  * O código fica guardado neste navegador.
  */
 import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -152,7 +151,7 @@ export function LabOverlay({ onClose }: { onClose: () => void }) {
       <View style={styles.window}>
         <View style={styles.header}>
           <Text style={styles.title}>🧪 Laboratório livre</Text>
-          <Text style={styles.sub}>Escreva JSX e veja o celular mudar na hora. Aqui não tem nota nem erro "valendo": experimente!</Text>
+          <Text style={styles.sub}>Escreva o código e veja o resultado ao lado.</Text>
           <Btn small title="✕ Fechar" onPress={onClose} />
         </View>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.cols}>
@@ -178,7 +177,7 @@ export function LabOverlay({ onClose }: { onClose: () => void }) {
             </View>
             <View style={styles.editor}>
               <View style={styles.editorBar}>
-                <Text style={styles.editorTitle}>App.js — Tab indenta · o código fica salvo neste navegador</Text>
+                <Text style={styles.editorTitle}>App.js</Text>
               </View>
               <TextInput
                 value={code}

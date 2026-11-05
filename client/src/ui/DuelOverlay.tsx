@@ -121,7 +121,6 @@ export function WrongFeedback({ msg, wait }: { msg: string; wait: number }) {
     <View style={styles.feedback}>
       <Text style={styles.feedbackTitle}>❌ Ainda não…</Text>
       <Text style={styles.feedbackText}>{msg}</Text>
-      {wait > 0 ? <Text style={[styles.feedbackText, { fontSize: 13, color: '#8a3b3b' }]}>🧠 Pense antes de tentar de novo: {wait}s (chutar só atrasa você!)</Text> : null}
     </View>
   );
 }
@@ -168,7 +167,7 @@ export function CodeTaskEditor({ task, onSubmit, wait = 0 }: { task: CodeTask; o
         <Btn
           big
           variant={allOk ? 'primary' : 'blue'}
-          title={wait > 0 ? `🧠 Pense… ${wait}s` : allOk ? '▶ Enviar (tudo certo!)' : '▶ Enviar  (Ctrl+Enter)'}
+          title={wait > 0 ? `▶ Enviar (${wait})` : '▶ Enviar  (Ctrl+Enter)'}
           disabled={wait > 0}
           onPress={() => onSubmit(code)}
         />

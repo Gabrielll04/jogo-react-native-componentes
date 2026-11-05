@@ -409,7 +409,7 @@ export function setupGame(server: Server) {
       // espera depois de errar: responder de novo antes disso não vale (nem conta tentativa)
       const now = Date.now();
       if (now < inst.lockUntil) {
-        return notice(socket, `🧠 Leia a explicação e pense mais um pouco (${Math.ceil((inst.lockUntil - now) / 1000)}s)`, 'warn');
+        return notice(socket, `Aguarde ${Math.ceil((inst.lockUntil - now) / 1000)}s para tentar de novo.`, 'warn');
       }
 
       inst.attempts++;
